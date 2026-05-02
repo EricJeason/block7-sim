@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Godot
+.godot/
+.import/
+*.import
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & DB
+logs/*.log
+*.sqlite
+*.db
+
+# 占位图(可选,如果不想纳入版本控制)
+# godot_client/assets/characters/*/
