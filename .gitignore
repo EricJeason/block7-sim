@@ -30,3 +30,6 @@ logs/*.log
 
 # 占位图(可选,如果不想纳入版本控制)
 # godot_client/assets/characters/*/
+
+# Claude Code local cache
+.claude/
