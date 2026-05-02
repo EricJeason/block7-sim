@@ -28,6 +28,9 @@ logs/*.log
 *.sqlite
 *.db
 
+# Test run artifacts (real-API call summaries)
+backend/logs/
+
 # 占位图(可选,如果不想纳入版本控制)
 # godot_client/assets/characters/*/
 
