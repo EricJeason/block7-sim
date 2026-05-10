@@ -24,6 +24,8 @@ def test_imports() -> None:
         PersonaLoader,
         build_rich_layer_1,
     )
+    from src.agent.perception import PerceptionBroker  # noqa: F401
+    from src.agent.scheduler import PerceptionListener  # noqa: F401
     from src.api import routes, websocket  # noqa: F401
     from src.llm import deepseek, prompt_builder  # noqa: F401
     from src.memory import compression, schema, store  # noqa: F401

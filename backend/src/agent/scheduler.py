@@ -6,7 +6,7 @@ import copy
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Iterable, Protocol
 
 from src.agent.runtime import ActionSource, AgentRuntime, QueuedAction, ThinkingReason
 from src.memory.store import Memory, MemoryStore
@@ -62,16 +62,36 @@ class IdlePlanProvider:
         ]
 
 
+class PerceptionListener(Protocol):
+    """Block F:scheduler 在 action 完成时调用此协议。
+
+    实现见 src.agent.perception.PerceptionBroker。Protocol 让 scheduler 不依赖
+    具体实现,可注入任何匹配签名的对象(便于测试)。返回值由 scheduler 丢弃,
+    抛异常会被 _memory_write_tasks 的 done_callback 静默 log 不影响 tick。
+    """
+
+    async def on_action_completed(
+        self,
+        actor: AgentRuntime,
+        action: QueuedAction,
+        all_agents: Iterable[AgentRuntime],
+        game_time: float,
+    ) -> Any:
+        ...
+
+
 class ActionScheduler:
     def __init__(
         self,
         planner: PlanProvider | None = None,
         memory_store: MemoryStore | None = None,
         config: SchedulerConfig | None = None,
+        perception_broker: PerceptionListener | None = None,
     ) -> None:
         self._planner = planner or IdlePlanProvider()
         self._memory_store = memory_store
         self._config = config or SchedulerConfig()
+        self._perception_broker = perception_broker
         self._agents: dict[str, AgentRuntime] = {}
         self._discarded_planning_tasks: set[asyncio.Task[list[QueuedAction]]] = set()
         self._memory_write_tasks: set[asyncio.Task[None]] = set()
@@ -119,13 +139,17 @@ class ActionScheduler:
         if agent.current_action is not None:
             agent.current_action.advance(dt)
             if agent.current_action.is_complete:
-                result.completed_action = agent.current_action
+                completed = agent.current_action
+                result.completed_action = completed
                 logger.info(
                     "[scheduler] complete agent=%s action=%s",
                     agent.agent_id,
-                    agent.current_action.action_type,
+                    completed.action_type,
                 )
                 agent.current_action = None
+                # Block F:把完成事件丢给 perception broker(异步,不阻塞 tick)
+                if self._perception_broker is not None:
+                    self._schedule_perception_broadcast(agent, completed, game_time)
 
         if agent.current_action is None and agent.action_queue:
             next_action = agent.action_queue.popleft()
@@ -398,6 +422,30 @@ class ActionScheduler:
                 copy.deepcopy(actions),
                 reason,
                 game_time,
+            )
+        )
+        self._memory_write_tasks.add(task)
+        task.add_done_callback(self._consume_memory_write_task)
+
+    def _schedule_perception_broadcast(
+        self,
+        agent: AgentRuntime,
+        action: QueuedAction,
+        game_time: float,
+    ) -> None:
+        """Block F:把 broker 调用作为后台任务,不阻塞 tick。
+
+        复用 _memory_write_tasks 集合,使 shutdown() 自然 drain perception 写入。
+        broker 内部异常会被 _consume_memory_write_task 静默 log。
+        """
+        if self._perception_broker is None:
+            return
+        # 拷贝 action 与 agents 快照,避免 broker 在异步执行期间观察到后续 tick 的状态变更
+        action_snapshot = copy.deepcopy(action)
+        agent_snapshot = list(self._agents.values())
+        task = asyncio.create_task(
+            self._perception_broker.on_action_completed(
+                agent, action_snapshot, agent_snapshot, game_time,
             )
         )
         self._memory_write_tasks.add(task)
