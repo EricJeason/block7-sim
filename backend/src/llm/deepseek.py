@@ -84,7 +84,10 @@ class LLMResponse:
 class DeepSeekClient:
     """DeepSeek 异步 chat completion 客户端,内置缓存计费与重试。"""
 
-    def __init__(self, api_key: str, base_url: str, timeout: float = 30.0) -> None:
+    def __init__(self, api_key: str, base_url: str, timeout: float = 120.0) -> None:
+        # 默认 120s:Block E 的 Pro think_high 规划任务实测可达 30-60s(推理 + JSON 输出)。
+        # Block B 的 non_think 调用通常 1-3s,长 timeout 不影响其性能,只是失败时多等一会。
+        # 实测于 2026-05-10。
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout

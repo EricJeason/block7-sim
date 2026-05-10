@@ -291,16 +291,20 @@ FINE_PLAN_TASK = """根据下面的「当前时段」,展开成 3-7 个具体的
 当前位置:{current_location}
 你刚才在做:{recent_actions}
 
+可用场所(move_to 的 location 字段必须用以下 id 之一,不要用中文名):
+{location_options}
+
 {action_vocab}
 
 要求:
 1. 输出 3-7 个动作,合起来覆盖该时段(不必精确,但总时长应在该时段内合理)。
 2. 每个动作 duration_seconds 必须 > 0,单位是游戏秒。
-3. 第一个动作如果需要换场所,先用 move_to 过去。
-4. 严格 JSON,格式:
+3. 如果 slot 的 location 与「当前位置」相同,**不要**输出 move_to 浪费时间;直接做正事。
+4. 如果需要换场所,第一个动作用 move_to 过去,location 必须是上面列表中的 id。
+5. 严格 JSON,格式:
 {{
   "actions": [
-    {{"action_type": "move_to", "args": {{"location": "..."}}, "duration_seconds": 45}},
+    {{"action_type": "move_to", "args": {{"location": "lao_song_plaza"}}, "duration_seconds": 45}},
     {{"action_type": "work", "args": {{"task": "..."}}, "duration_seconds": 120}}
   ]
 }}
@@ -429,16 +433,23 @@ class LLMPlanner:
         )
         messages = self._assemble_messages(persona, agent, [], task, game_time)
         try:
+            # max_tokens 必须给得够 — Pro think_high 模式的"推理 tokens"也计入 max_tokens 配额。
+            # 实测于 2026-05-10:max_tokens=800 时,推理花掉绝大部分配额,
+            # JSON 输出在首个 slot 的 notes 中段就被截断 → 解析失败 → fallback。
+            # 3000 = ~2000 推理 + ~800 JSON 输出,留足余量。
             response = await self.llm.chat(
                 messages=messages,
                 model=self.model_pro,
                 mode=ThinkMode.THINK_HIGH,
                 temperature=0.7,
-                max_tokens=800,
+                max_tokens=3000,
             )
         except Exception as exc:  # noqa: BLE001 — LLM 是外部边界,失败兜底
             logger.warning(
-                "[planner] daily LLM failed agent=%s: %s", agent.agent_id, exc
+                "[planner] daily LLM failed agent=%s: %s: %r",
+                agent.agent_id,
+                type(exc).__name__,
+                exc,
             )
             return self._fallback_daily_plan(agent, persona, game_day)
         slots = self._parse_daily_slots(response.content)
@@ -484,10 +495,15 @@ class LLMPlanner:
         if slot.notes:
             slot_summary += f" ({slot.notes})"
         recent_actions = self._summarize_recent_actions(agent)
+        locations = self.location_loader.all()
+        location_options = _format_location_options(
+            locations, persona.typical_locations
+        )
         task = FINE_PLAN_TASK.format(
             slot_summary=slot_summary,
             current_location=agent.current_location or "?",
             recent_actions=recent_actions,
+            location_options=location_options,
             action_vocab=_ACTION_VOCAB,
         )
         messages = self._assemble_messages(persona, agent, memories, task, game_time)
