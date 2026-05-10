@@ -1,77 +1,71 @@
-# CLAUDE.md — Block-7 项目说明(给 Claude Code 看)
+# CLAUDE.md — Block-7 项目工作守则
 
-**项目代号**:Block-7 生成式智能体社会模拟器
-**当前阶段**:Day 1 — Block A 已完成,等待启动 Block B(DeepSeek 客户端)
-**权威设计文档**:[`Project_Design_Document_v0_2.md`](Project_Design_Document_v0_2.md)
-
----
-
-## 目录结构总览
-
-```
-block7-sim/
-├── backend/                 Python 后端(FastAPI + DeepSeek + SQLite)
-│   ├── pyproject.toml
-│   ├── src/
-│   │   ├── main.py          FastAPI 入口(Block A:仅 /health)
-│   │   ├── config.py        .env 加载 + Settings dataclass
-│   │   ├── agent/           AgentRuntime / scheduler / planning / perception / reflection
-│   │   ├── llm/             DeepSeek 客户端 + 4 层 prompt 缓存构建器
-│   │   ├── memory/          SQLite schema / store / 压缩(关键词召回,无向量)
-│   │   └── api/             FastAPI 路由 + WebSocket
-│   ├── tests/               pytest(Block A 烟测在此)
-│   └── data/                运行期 SQLite 与 persona YAML
-├── godot_client/            Godot 4 客户端
-│   ├── project.godot
-│   ├── scenes/Main.tscn     主场景
-│   └── scripts/             main / game_clock / backend_client / agents/
-├── docs/                    设计文档与本文件
-├── logs/                    运行日志输出目录
-├── Makefile                 mac/linux 开发命令
-├── dev.ps1                  Windows PowerShell 开发命令(install/backend/test/lint)
-├── .env / .env.example      环境变量(.env 不入库)
-└── README.md
-```
+**项目代号**:Block-7 生成式智能体社会模拟器(暮谷镇)
+**当前阶段**:Day 1 backend MVP 完成(A→F + 暮谷镇);**下一步:Block H(API + WebSocket + Godot 联调)**
+**协作主理**:Eric(高三学生,非专职程序员)
 
 ---
 
-## 关键约束(写代码前必读)
+## ⚡ 你接手时请按这个顺序读
 
-1. **不使用 embedding / 向量检索**。Memory 召回走关键词倒排 + 时间衰减打分。
-   严禁引入 sentence-transformers / faiss / chromadb / langchain。
-   (设计文档第 0 节变更项 #1)
-2. **严格遵守 4 层 prompt 缓存结构**:
-   - Layer 0:系统指令 / 角色框架(进程级常驻)
-   - Layer 1:agent 不变特征(persona)
-   - Layer 2:当日相对稳定上下文(当日规划、反思、关键 memory 摘要)
-   - Layer 3:本次调用专属(当前观察、即时输入)
-   每次调用前 3 层必须生成完全一致的 token 序列以触发 DeepSeek prompt cache。
-3. **Action Queue 永不阻塞游戏循环**。Godot 端 60Hz tick 与 Python 端 LLM 调用全异步,
-   通过 WebSocket 解耦,LLM 慢响应不能让 sim tick 停顿。
-4. **Pro vs Flash 双模型分工**:Pro 用于反思 + 粗粒度规划,Flash 用于细粒度规划与对话。
+1. **本文档**(< 1 分钟):红线 + 索引
+2. **[`工作展望.md`](工作展望.md)**(5 分钟):快速恢复指南 + Block G/H 详规 + 关键文件地图 + 待 Eric 拍板事项
+3. **[`Day1_工作总结.md`](Day1_工作总结.md)**(可选,5 分钟):历史轨迹 + 实测数据 + 踩坑记录
+4. **[`Project_Design_Document_v0_2.md`](Project_Design_Document_v0_2.md)**(查阅型):架构总纲
+
+> 不要直接看 `Day1_Block_*_Task.md`——那些是历史任务派单,可能与当前代码不一致。
 
 ---
 
-## Block 路线图
+## 🚫 八条红线(动手前确认)
+
+1. **不引入 embedding / 向量检索**。Memory 召回只能 SQLite LIKE + 时间衰减。严禁 sentence-transformers / faiss / chromadb / langchain。
+2. **不破坏 4 层 prompt 缓存的字节稳定性**。改 LAYER_0_SYSTEM 或 build_rich_layer_1 → 必须重跑 `pytest tests/test_cache_hit_rate.py` 确认仍 ≥ 90%。
+3. **scheduler.tick 永不阻塞**。LLM 调用全部走 asyncio.create_task,通过 _memory_write_tasks 集合追踪。
+4. **PlanProvider / PerceptionListener Protocol 是稳定契约**——改签名会震动调度器与所有 mock。
+5. **暮谷镇 LAYER_0 + 12 personas 是叙事核心**——改这些 = 缓存失效 + 角色行为跑偏。
+6. **不能 amend / force-push 已有 commit;不能 --no-verify 跳 hook**——遇修上一 commit 的需求,创建新 commit。
+7. **Pro think_high 调用必须 max_tokens ≥ 3000 + client timeout ≥ 90s**(推理 token 也吃 max_tokens 配额)。
+8. **不主动写文档**(README / *.md)除非 Eric 明确要求。
+
+---
+
+## 当前 Block 进度(详见 [工作展望.md](工作展望.md))
 
 | Block | 内容 | 状态 |
 |---|---|---|
-| **A** | 项目骨架(Python + Godot 占位 + 顶层脚本) | ✅ 已完成 |
-| **B** | DeepSeek 客户端 + 4 层 prompt 构建器 | ⏳ 下一步 |
-| **C** | SQLite schema + memory store CRUD + 关键词查询 | ⏳ |
-| **D** | AgentRuntime + Action Queue 调度器 | ⏳ |
-| **E** | 粗粒度 / 细粒度规划 | ⏳ |
-| **F** | 同场所事件传播(perception) | ⏳ |
+| A | 项目骨架 | ✅ |
+| B | DeepSeek 客户端 + 4 层缓存 | ✅ 命中率 92.9% |
+| C | Memory 子系统 | ✅ |
+| **+** | 暮谷镇世界观锁定 | ✅ |
+| D | AgentRuntime + Action Queue 调度器 | ✅ Codex 实现 |
+| E | 粗 + 细两层规划器 | ✅ |
+| F | Perception 同场所传播 | ✅ |
 | **G** | 每日反思 + memory 压缩 | ⏳ |
-| **H** | FastAPI 路由 + WebSocket + Godot 端联调 | ⏳ |
+| **H** | FastAPI + WebSocket + Godot 联调 | ⏳ 下一步 |
 
-每个 Block 完成后由 Eric 验收并发下一个任务包。
+测试基线:**69 单测全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)。
 
 ---
 
-## 给 Claude Code 的工作准则
+## 协作风格
 
-- **只搭架子,不写业务逻辑**。占位函数都用 `raise NotImplementedError("Block X 实现")` 标注归属。
-- **目录结构由设计文档决定**,不要新增 / 重命名顶层目录。
-- **遇决策不确定**,在代码里留 `# TODO(Block X): ...` 注释继续推进,不打断 Eric。
-- **不联网下载额外资源**,除 pip install 必要依赖外不拉镜像、不克隆其他仓库。
+- **Eric 不是程序员**:决策时给 2-3 个对照选项让他选,不要直接拍板。
+- **大白话 + 类比**:解释 asyncio / cache / WebSocket 用日常类比。
+- **变更前先核对状态**:Eric 可能与 Codex 或其它 Claude 并行;改主目录前先 `git status`。
+- **真实 API 验证比单测有效**:涉及 prompt 设计的 Block 必须做一次真实调用(¥0.02–0.05)。
+- **每个 Block 独立 commit**:不要揉一起;commit 信息中文,体例参照已有 commit。
+- **占位函数留 `raise NotImplementedError("Block X 实现")`** 标注归属。
+
+---
+
+## 开发命令(Windows / PowerShell)
+
+```powershell
+.\dev.ps1 install   # pip install -e ".[dev]"
+.\dev.ps1 backend   # uvicorn 启动后端
+.\dev.ps1 test      # pytest
+.\dev.ps1 lint      # ruff + mypy
+```
+
+mac/linux 用 `make install / backend / test / lint`。
