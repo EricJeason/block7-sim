@@ -16,9 +16,20 @@ def test_health() -> None:
 def test_imports() -> None:
     """所有占位模块都能 import,即使未实现"""
     from src.agent import perception, planning, reflection, runtime, scheduler  # noqa: F401
+    from src.agent.runtime import AgentRuntime, QueuedAction  # noqa: F401
+    from src.agent.scheduler import ActionScheduler, SchedulerConfig  # noqa: F401
     from src.api import routes, websocket  # noqa: F401
     from src.llm import deepseek, prompt_builder  # noqa: F401
     from src.memory import compression, schema, store  # noqa: F401
+
+
+def test_prompt_builder_locked_to_muguzhen() -> None:
+    """LAYER_0 已锁定为暮谷镇(Eric 已敲定世界观)。占位符与旧世界名都不应再出现。"""
+    from src.llm.prompt_builder import PromptBuilder
+
+    assert "暮谷镇" in PromptBuilder.LAYER_0_SYSTEM
+    assert "[WORLD_PENDING]" not in PromptBuilder.LAYER_0_SYSTEM
+    assert "青岚镇" not in PromptBuilder.LAYER_0_SYSTEM
 
 
 def test_prompt_builder_layer_stability() -> None:

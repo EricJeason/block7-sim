@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 import pytest_asyncio
 
 from src.memory.schema import init_db
