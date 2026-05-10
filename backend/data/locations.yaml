@@ -1,0 +1,54 @@
+locations:
+  - id: lao_song_plaza
+    name: "老松广场"
+    type: "social"
+    description: |
+      村子正中,约六十步见方的开阔地。青石板铺地,缝里长满野草。北侧
+      有一棵歪脖子的老松树——树干粗到三个成年人才能合抱,树枝向南倾斜
+      得不正常。东侧是议事厅与协会公告栏,西侧是苏拂的酒馆,南侧通往
+      暖谷农场的小路。每三日一次集市,日常是村里的信息流通中心。深夜
+      几乎无人,但偶尔有失眠者独自来——议事会公告栏有一条永久公告:
+      "不要在午夜独自停留松树下",没人记得为什么有。
+    typical_occupants: ["agent_07", "agent_05", "agent_01", "agent_09", "agent_03", "agent_04", "agent_08", "agent_12"]
+    open_hours: "00:00-24:00"
+    adjacent_to: ["north_frost_workshop", "warm_valley_farm", "silent_tower_ruins"]
+
+  - id: north_frost_workshop
+    name: "北霜工坊"
+    type: "commercial"
+    description: |
+      离村中心向北约一虚拟小时,在一条天然"风道"上。石头基座 + 厚木结构,
+      斜坡屋顶防积雪,门前永远冒着烟的炼药炉边的雪从来融不化太多。后院
+      连通冰窟矿场——出产解药关键的"霜髓矿"。捕魔队驻地也在这一带的
+      北侧。永远有人在,因为炉火不能熄。冰窟深处偶尔传出"细微的声响",
+      像冰下有东西在动——村里禁止深入。
+    typical_occupants: ["agent_06", "agent_11"]
+    open_hours: "00:00-24:00"
+    adjacent_to: ["lao_song_plaza"]
+
+  - id: warm_valley_farm
+    name: "暖谷农场"
+    type: "commercial"
+    description: |
+      离村中心向南约一虚拟小时,坐落于一片小山谷。地脉异常让这里温度比
+      村子高 5–10 度,空气湿润。木造工棚、大片露天种植田、几个温棚,
+      田边有蛇形小溪。文姐住在最深处的小木屋里,屋前种着她从故乡带来的
+      一棵小树——最近开始开一种它本不应该开的花。下午的某段时间是文姐
+      的"独处时间",别人不来打扰。
+    typical_occupants: ["agent_10"]
+    open_hours: "06:00-22:00"
+    adjacent_to: ["lao_song_plaza"]
+
+  - id: silent_tower_ruins
+    name: "寂塔遗迹"
+    type: "liminal"
+    description: |
+      离村中心向东约两虚拟小时,在一片乱石坡上。主体是一座倒了一半的
+      石塔——原本高约六层,现在只剩两层与三段倾斜废墟。塔身用一种
+      现在的工匠认不出的石材建成。塔周一圈环形痕迹像被烧过,年代太久
+      看不清。没有路通向那里,只有一条野兽小径。白天静得反常,夜晚
+      塔身偶尔发出微弱的"呜呜"声。捕魔队员若听到,按不成文规矩立刻撤离。
+      塔身刻字大部分被涂掉——早纪正在调查这件事。
+    typical_occupants: []
+    open_hours: "00:00-24:00"
+    adjacent_to: ["lao_song_plaza"]
