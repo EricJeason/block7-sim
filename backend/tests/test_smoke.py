@@ -18,6 +18,12 @@ def test_imports() -> None:
     from src.agent import perception, planning, reflection, runtime, scheduler  # noqa: F401
     from src.agent.runtime import AgentRuntime, QueuedAction  # noqa: F401
     from src.agent.scheduler import ActionScheduler, SchedulerConfig  # noqa: F401
+    from src.agent.planning import (  # noqa: F401
+        LLMPlanner,
+        LocationLoader,
+        PersonaLoader,
+        build_rich_layer_1,
+    )
     from src.api import routes, websocket  # noqa: F401
     from src.llm import deepseek, prompt_builder  # noqa: F401
     from src.memory import compression, schema, store  # noqa: F401
