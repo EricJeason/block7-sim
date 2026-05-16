@@ -26,6 +26,7 @@ const LOCATION_SCENES := {
 @onready var memory_panel: Control = $HUD/MemoryPanel
 @onready var memory_title: Label = $HUD/MemoryPanel/Title
 @onready var memory_content: RichTextLabel = $HUD/MemoryPanel/Content
+@onready var pause_button: Button = $HUD/PausePanel/PauseButton
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -38,15 +39,18 @@ func _ready() -> void:
 	GameWorld.location_switched.connect(_on_location_switched)
 	GameWorld.sim_ticked.connect(_on_sim_ticked)
 	GameWorld.connection_changed.connect(_on_connection_changed)
+	GameWorld.paused_changed.connect(_on_paused_changed)
 	GameWorld.agent_started_action.connect(_on_agent_action_changed)
 	GameWorld.agent_completed_action.connect(_on_agent_action_changed)
 	GameWorld.agent_moved.connect(_on_agent_moved_anywhere)
 	GameWorld.agent_thinking_started.connect(_on_agent_thinking_changed)
 	GameWorld.agent_thinking_completed.connect(_on_agent_thinking_changed2)
+	pause_button.pressed.connect(_on_pause_button_pressed)
 
 	_update_nav_label()
 	_update_time_label()
 	_update_connection_dot(false)
+	_update_pause_button()
 	memory_panel.visible = false
 
 
@@ -84,6 +88,32 @@ func _on_sim_ticked(_game_time: float) -> void:
 
 func _on_connection_changed(connected: bool) -> void:
 	_update_connection_dot(connected)
+
+
+func _on_paused_changed(_paused: bool) -> void:
+	_update_pause_button()
+
+
+func _on_pause_button_pressed() -> void:
+	# 翻转当前 paused 状态;真正状态变化通过 WS paused_changed 事件回来更新按钮
+	BackendClient.set_sim_paused(not GameWorld.paused)
+	# 即时反馈:按钮文字暂时显示"切换中"
+	pause_button.text = "...切换中..."
+	pause_button.disabled = true
+	# 1.5 秒后无论是否收到事件都恢复按钮可点击,防止 stuck
+	get_tree().create_timer(1.5).timeout.connect(func() -> void:
+		pause_button.disabled = false
+		_update_pause_button()
+	)
+
+
+func _update_pause_button() -> void:
+	if GameWorld.paused:
+		pause_button.text = "▶ 开始(暂停中)"
+		pause_button.modulate = Color(0.6, 1.0, 0.6, 1)
+	else:
+		pause_button.text = "⏸ 暂停(运行中)"
+		pause_button.modulate = Color(1.0, 0.9, 0.5, 1)
 
 
 # ----------------------------------------------------- input

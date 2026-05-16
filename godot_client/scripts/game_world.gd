@@ -45,6 +45,9 @@ signal location_switched(new_location_id: String)
 ## 后端连接状态变化。connected=true 表示 WS 已连;false 表示断开或未连。
 signal connection_changed(connected: bool)
 
+## sim 运行状态变化(后端 /sim/pause / /sim/resume 触发)。
+signal paused_changed(paused: bool)
+
 # ----------------------------------------------------------------- state
 
 ## locations[location_id] = { id, name, type, description, open_hours, adjacent_to[] }
@@ -63,6 +66,9 @@ var game_time: float = 0.0
 ## 后端配置:1 现实秒 = N 游戏秒。
 var time_scale: float = 60.0
 
+## sim 是否暂停(后端 /world 返回 + WS paused_changed 同步)。
+var paused: bool = true  # 默认暂停假设(BLOCK7_START_PAUSED=1)
+
 var _connected: bool = false
 
 
@@ -80,6 +86,12 @@ func apply_world_snapshot(world: Dictionary) -> void:
 
 	game_time = float(world.get("game_time", 0.0))
 	time_scale = float(world.get("time_scale", 60.0))
+	# 兜底 true:后端没返回该字段时假设暂停(防意外烧 token)
+	var raw_paused = world.get("paused")
+	var new_paused: bool = bool(raw_paused) if raw_paused != null else true
+	if new_paused != paused:
+		paused = new_paused
+		paused_changed.emit(paused)
 	world_initialized.emit(world)
 
 
@@ -116,6 +128,11 @@ func handle_sim_event(event: Dictionary) -> void:
 			agent_thinking_started.emit(agent_id)
 		"thinking_completed":
 			agent_thinking_completed.emit(agent_id, int(payload.get("appended_count", 0)))
+		"paused_changed":
+			var new_paused: bool = bool(payload.get("paused", false))
+			if new_paused != paused:
+				paused = new_paused
+				paused_changed.emit(paused)
 		"tick_error":
 			push_warning("[game_world] tick_error agent=%s err=%s" % [agent_id, payload.get("error", "?")])
 		"pong":

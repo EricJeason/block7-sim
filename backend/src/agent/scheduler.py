@@ -16,9 +16,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class SchedulerConfig:
-    thinking_trigger_threshold: float = 30.0
+    """Scheduler 调度参数。
+
+    成本控制要点(2026-05-16 实测调整):
+    - thinking_trigger_threshold 从 30 → 120 游戏秒:fine plan 触发频率降 4 倍
+    - max_planner_actions 从 10 → 15:每次 fine plan 出更多 action 覆盖更长时段
+    - 共同降低 LLM 调用频率,把 ¥1.76/游戏日 拉回到目标 ¥0.4/游戏日
+    """
+
+    thinking_trigger_threshold: float = 120.0
     fallback_idle_seconds: float = 2.0
-    max_planner_actions: int = 10
+    max_planner_actions: int = 15
     max_consecutive_planning_failures: int = 3
 
 

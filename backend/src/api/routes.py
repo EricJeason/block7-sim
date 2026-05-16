@@ -39,6 +39,29 @@ async def get_world(request: Request) -> dict[str, Any]:
     return engine.world_snapshot()
 
 
+@router.get("/sim/state")
+async def get_sim_state(request: Request) -> dict[str, Any]:
+    """轻量查询:仅返回 sim 当前是否暂停 + game_time。"""
+    engine = _get_engine(request)
+    return {"paused": engine.is_paused(), "game_time": engine.game_time}
+
+
+@router.post("/sim/pause")
+async def pause_sim(request: Request) -> dict[str, Any]:
+    """暂停 tick(不烧 token)。幂等。"""
+    engine = _get_engine(request)
+    engine.pause()
+    return {"paused": True}
+
+
+@router.post("/sim/resume")
+async def resume_sim(request: Request) -> dict[str, Any]:
+    """恢复 tick。幂等。"""
+    engine = _get_engine(request)
+    engine.resume()
+    return {"paused": False}
+
+
 @router.get("/agents")
 async def list_agents(request: Request) -> list[dict[str, Any]]:
     """所有 agent 的运行时快照(用 AgentRuntime.snapshot)。"""

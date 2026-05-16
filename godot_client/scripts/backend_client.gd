@@ -93,6 +93,28 @@ func _fetch_world() -> void:
 		http.queue_free()
 
 
+## 请求 sim pause / resume(成本控制)。
+## paused=true → POST /sim/pause, false → /sim/resume。
+## 状态变化最终通过 WS paused_changed 事件回到 GameWorld。
+func set_sim_paused(paused: bool) -> void:
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, _body: PackedByteArray) -> void:
+			http.queue_free()
+			if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+				push_warning("[backend_client] /sim/%s failed: result=%d code=%d" % [
+					"pause" if paused else "resume", result, code
+				])
+	)
+	var url: String = BACKEND_URL + ("/sim/pause" if paused else "/sim/resume")
+	# FastAPI POST 端点无需 body
+	var err: int = http.request(url, [], HTTPClient.METHOD_POST, "")
+	if err != OK:
+		push_warning("[backend_client] POST /sim/%s err=%d" % ["pause" if paused else "resume", err])
+		http.queue_free()
+
+
 ## 拉取单个 agent 最近 N 条 memory(inspector 面板用)。
 ## callback 形如: func(memories: Array) -> void
 func fetch_agent_memories(agent_id: String, limit: int, callback: Callable) -> void:

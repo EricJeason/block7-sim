@@ -285,7 +285,7 @@ DAILY_PLAN_TASK = """请为今天生成一份粗粒度日程。要求:
 不要任何解释、markdown 包裹或前后缀。
 """
 
-FINE_PLAN_TASK = """根据下面的「当前时段」,展开成 3-7 个具体的小动作。
+FINE_PLAN_TASK = """根据下面的「当前时段」,展开成 5-10 个具体的小动作。
 
 当前时段:{slot_summary}
 当前位置:{current_location}
@@ -297,15 +297,17 @@ FINE_PLAN_TASK = """根据下面的「当前时段」,展开成 3-7 个具体的
 {action_vocab}
 
 要求:
-1. 输出 3-7 个动作,合起来覆盖该时段(不必精确,但总时长应在该时段内合理)。
+1. 输出 5-10 个动作,合起来覆盖该时段(约 30-120 游戏分钟,即 1800-7200 游戏秒)。
 2. 每个动作 duration_seconds 必须 > 0,单位是游戏秒。
+   - 大多数动作建议 ≥ 120 秒(2 分钟),不要堆一串 10-30 秒的小动作。
+   - work 类活动一般 180-600 秒;rest 类 300-900 秒;observe / interact 60-180 秒。
 3. 如果 slot 的 location 与「当前位置」相同,**不要**输出 move_to 浪费时间;直接做正事。
 4. 如果需要换场所,第一个动作用 move_to 过去,location 必须是上面列表中的 id。
 5. 严格 JSON,格式:
 {{
   "actions": [
-    {{"action_type": "move_to", "args": {{"location": "lao_song_plaza"}}, "duration_seconds": 45}},
-    {{"action_type": "work", "args": {{"task": "..."}}, "duration_seconds": 120}}
+    {{"action_type": "move_to", "args": {{"location": "lao_song_plaza"}}, "duration_seconds": 60}},
+    {{"action_type": "work", "args": {{"task": "..."}}, "duration_seconds": 300}}
   ]
 }}
 不要任何解释,不要 markdown 包裹。
@@ -513,7 +515,8 @@ class LLMPlanner:
                 model=self.model_flash,
                 mode=ThinkMode.NON_THINK,
                 temperature=0.7,
-                max_tokens=400,
+                # 800 留余量:5-10 个 action × 平均 80 tokens/个 ≈ 600-800
+                max_tokens=800,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning(

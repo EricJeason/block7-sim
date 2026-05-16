@@ -80,14 +80,18 @@ class SimEngine:
         self._stop_event: asyncio.Event | None = None
         self._subscribers: set[asyncio.Queue[SimEvent]] = set()
         self._registered = False
+        self._paused: bool = False
 
     # ---------------------------------------------------------------- start
 
-    async def start(self, *, run_loop: bool = True) -> None:
+    async def start(self, *, run_loop: bool = True, paused: bool = False) -> None:
         """注册 agent + (可选)启动后台 tick 循环。
 
         run_loop=False 时(测试用),只注册,不启动循环;调用方手动 tick_once。
+        paused=True 时,tick 循环启动但暂停状态——不烧任何 token,
+        客户端调用 /sim/resume 才开始真实运行(Eric 用此默认控制成本)。
         """
+        self._paused = paused
         if not self._registered:
             self._register_agents()
             self._registered = True
@@ -95,10 +99,11 @@ class SimEngine:
             self._stop_event = asyncio.Event()
             self._tick_task = asyncio.create_task(self._run_tick_loop())
             logger.info(
-                "[sim] started: %d agents, time_scale=%g, tick_interval=%gs",
+                "[sim] started: %d agents, time_scale=%g, tick_interval=%gs, paused=%s",
                 len(self.agent_ids),
                 self.time_scale,
                 self.tick_interval_seconds,
+                self._paused,
             )
 
     def _register_agents(self) -> None:
@@ -175,10 +180,50 @@ class SimEngine:
             now = time.monotonic()
             dt_real = now - last_real
             last_real = now
+            if self._paused:
+                # 暂停期间 last_real 仍更新,resume 后不会突然推一大段 game_time
+                continue
             try:
                 await self.tick_once(dt_real=dt_real)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("[sim] tick error: %s", exc)
+
+    # ---------------------------------------------------------- pause / resume
+
+    def is_paused(self) -> bool:
+        return self._paused
+
+    def pause(self) -> None:
+        """暂停 tick(不影响已经在 await 的 LLM 任务,但不会触发新一波)。
+
+        客户端可调 POST /sim/pause 触发。重复调用幂等。
+        """
+        if self._paused:
+            return
+        self._paused = True
+        logger.info("[sim] paused at game_time=%g", self.game_time)
+        self._publish(
+            SimEvent(
+                type="paused_changed",
+                agent_id=None,
+                game_time=self.game_time,
+                payload={"paused": True},
+            )
+        )
+
+    def resume(self) -> None:
+        if not self._paused:
+            return
+        self._paused = False
+        logger.info("[sim] resumed at game_time=%g", self.game_time)
+        self._publish(
+            SimEvent(
+                type="paused_changed",
+                agent_id=None,
+                game_time=self.game_time,
+                payload={"paused": False},
+            )
+        )
 
     # ------------------------------------------------------- subscribe / pub
 
@@ -304,6 +349,7 @@ class SimEngine:
             "game_time": self.game_time,
             "time_scale": self.time_scale,
             "tick_interval_seconds": self.tick_interval_seconds,
+            "paused": self._paused,
             "locations": locations,
             "agents": agents,
         }

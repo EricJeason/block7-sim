@@ -93,6 +93,47 @@ def test_world_503_when_no_engine_attached() -> None:
         assert r.status_code == 503
 
 
+def test_world_returns_paused_field(client: TestClient) -> None:
+    """/world 应该带 paused 字段(Eric 默认 paused 启动控制成本)。"""
+    r = client.get("/world")
+    assert r.status_code == 200
+    assert "paused" in r.json()
+
+
+# ============================================================================
+#                       HTTP /sim/pause /sim/resume /sim/state
+# ============================================================================
+
+
+def test_sim_state_returns_paused(client: TestClient) -> None:
+    r = client.get("/sim/state")
+    assert r.status_code == 200
+    data = r.json()
+    assert "paused" in data
+    assert "game_time" in data
+
+
+def test_pause_resume_toggle(client: TestClient, engine: SimEngine) -> None:
+    """pause → resume → state 跟踪。"""
+    assert engine.is_paused() is False  # 默认非 paused 启动
+    r = client.post("/sim/pause")
+    assert r.status_code == 200
+    assert r.json()["paused"] is True
+    assert engine.is_paused() is True
+
+    r = client.post("/sim/resume")
+    assert r.status_code == 200
+    assert r.json()["paused"] is False
+    assert engine.is_paused() is False
+
+
+def test_pause_idempotent(client: TestClient, engine: SimEngine) -> None:
+    """重复 pause 不出错,状态保持。"""
+    client.post("/sim/pause")
+    client.post("/sim/pause")
+    assert engine.is_paused() is True
+
+
 # ============================================================================
 #                            HTTP /agents
 # ============================================================================
