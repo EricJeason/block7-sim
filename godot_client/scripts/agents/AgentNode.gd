@@ -16,8 +16,11 @@ extends Node2D
 @onready var name_label: Label = $NameLabel
 @onready var action_label: Label = $ActionLabel
 @onready var thinking_indicator: Label = $ThinkingIndicator
+@onready var speech_bubble: PanelContainer = $SpeechBubble
+@onready var speech_label: Label = $SpeechBubble/SpeechLabel
 
 var _has_sprite: bool = false
+var _speech_hide_timer: SceneTreeTimer = null
 
 
 func _ready() -> void:
@@ -97,6 +100,30 @@ func on_thinking_started() -> void:
 
 func on_thinking_completed(_appended_count: int) -> void:
 	thinking_indicator.visible = false
+
+
+# ------------------------------------------------------- dialogue speech
+
+## 显示一句台词,3 秒后自动隐藏(如果没有新台词覆盖)。
+## 由 LocationView 接到 GameWorld.dialogue_line signal 后转发。
+func show_speech_line(text: String, duration_seconds: float = 3.0) -> void:
+	speech_label.text = text
+	speech_bubble.visible = true
+	# 取消旧 timer,重置 3 秒
+	# SceneTreeTimer 没有 cancel,但旧 timer 触发时检查 text 是否已变即可
+	var snapshot_text := text
+	var t := get_tree().create_timer(duration_seconds)
+	_speech_hide_timer = t
+	t.timeout.connect(func() -> void:
+		# 仅在没有更新过台词时才隐藏
+		if speech_label.text == snapshot_text:
+			speech_bubble.visible = false
+	)
+
+
+func hide_speech() -> void:
+	speech_bubble.visible = false
+	speech_label.text = ""
 
 
 # -------------------------------------------------------------- helpers

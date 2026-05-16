@@ -25,6 +25,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from src.agent.dialogue import DialogueManager
 from src.agent.perception import PerceptionBroker
 from src.agent.planning import LLMPlanner, LocationLoader, PersonaLoader
 from src.agent.scheduler import ActionScheduler, SchedulerConfig
@@ -102,10 +103,19 @@ async def lifespan(app: FastAPI):
         model_pro=settings.deepseek_model_pro,
         model_flash=settings.deepseek_model_flash,
     )
+    # Block I:对话状态机。先构造(此时 emit 还未接,推到事件会被静默丢弃,
+    # 但此时也不会有任何对话发生),engine 构造完后再回填 set_event_emitter。
+    dialogue_manager = DialogueManager(
+        llm=llm_client,
+        persona_loader=persona_loader,
+        memory_store=memory_store,
+        model_flash=settings.deepseek_model_flash,
+    )
     broker = PerceptionBroker(
         memory_store=memory_store,
         persona_loader=persona_loader,
         location_loader=location_loader,
+        dialogue_manager=dialogue_manager,
     )
     scheduler_config = SchedulerConfig(
         thinking_trigger_threshold=thinking_threshold,
@@ -116,6 +126,7 @@ async def lifespan(app: FastAPI):
         memory_store=memory_store,
         config=scheduler_config,
         perception_broker=broker,
+        dialogue_guard=dialogue_manager,
     )
 
     # 4. SimEngine 启动
@@ -127,17 +138,21 @@ async def lifespan(app: FastAPI):
         time_scale=time_scale,
         tick_interval_seconds=tick_interval,
     )
+    # 回填 emit_event:DialogueManager 现在可以推 dialogue_* 事件给 WS 订阅者
+    dialogue_manager.set_event_emitter(engine.emit_event)
     await engine.start(run_loop=auto_tick, paused=start_paused)
 
     # 5. 挂 app.state
     app.state.sim_engine = engine
     app.state.llm_client = llm_client
+    app.state.dialogue_manager = dialogue_manager
 
     try:
         yield
     finally:
         logger.info("[main] lifespan shutdown")
         await engine.stop()
+        await dialogue_manager.shutdown()
         await llm_client.aclose()
 
 

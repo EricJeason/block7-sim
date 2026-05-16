@@ -39,6 +39,8 @@ func _ready() -> void:
 	GameWorld.agent_thinking_started.connect(_on_agent_thinking_started)
 	GameWorld.agent_thinking_completed.connect(_on_agent_thinking_completed)
 	GameWorld.world_initialized.connect(_on_world_initialized)
+	GameWorld.dialogue_line.connect(_on_dialogue_line)
+	GameWorld.dialogue_ended.connect(_on_dialogue_ended)
 
 	# 若 world 已经初始化(切场所重新进入时),立即填充
 	_populate_agents()
@@ -177,3 +179,17 @@ func _on_agent_thinking_completed(agent_id: String, appended_count: int) -> void
 	var node: Node = _agent_nodes.get(agent_id)
 	if node != null and node.has_method("on_thinking_completed"):
 		node.on_thinking_completed(appended_count)
+
+
+func _on_dialogue_line(_session_id: String, speaker_id: String, text: String, _turn_idx: int) -> void:
+	var node: Node = _agent_nodes.get(speaker_id)
+	if node != null and node.has_method("show_speech_line"):
+		node.show_speech_line(text)
+
+
+func _on_dialogue_ended(_sess: String, initiator_id: String, target_id: String, _turns: int, _reason: String) -> void:
+	# 立刻隐藏双方气泡(若还显示)
+	for aid in [initiator_id, target_id]:
+		var node: Node = _agent_nodes.get(aid)
+		if node != null and node.has_method("hide_speech"):
+			node.hide_speech()

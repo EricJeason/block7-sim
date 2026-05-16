@@ -48,6 +48,11 @@ signal connection_changed(connected: bool)
 ## sim 运行状态变化(后端 /sim/pause / /sim/resume 触发)。
 signal paused_changed(paused: bool)
 
+## Block I:对话事件。
+signal dialogue_started(session_id: String, initiator_id: String, target_id: String, location: String)
+signal dialogue_line(session_id: String, speaker_id: String, text: String, turn_idx: int)
+signal dialogue_ended(session_id: String, initiator_id: String, target_id: String, total_turns: int, reason: String)
+
 # ----------------------------------------------------------------- state
 
 ## locations[location_id] = { id, name, type, description, open_hours, adjacent_to[] }
@@ -133,6 +138,28 @@ func handle_sim_event(event: Dictionary) -> void:
 			if new_paused != paused:
 				paused = new_paused
 				paused_changed.emit(paused)
+		"dialogue_started":
+			dialogue_started.emit(
+				_str_or_empty(payload.get("session_id")),
+				_str_or_empty(payload.get("initiator_id")),
+				_str_or_empty(payload.get("target_id")),
+				_str_or_empty(payload.get("location")),
+			)
+		"dialogue_line":
+			dialogue_line.emit(
+				_str_or_empty(payload.get("session_id")),
+				_str_or_empty(payload.get("speaker_id")),
+				_str_or_empty(payload.get("text")),
+				int(_float_or_zero(payload.get("turn_idx"))),
+			)
+		"dialogue_ended":
+			dialogue_ended.emit(
+				_str_or_empty(payload.get("session_id")),
+				_str_or_empty(payload.get("initiator_id")),
+				_str_or_empty(payload.get("target_id")),
+				int(_float_or_zero(payload.get("total_turns"))),
+				_str_or_empty(payload.get("reason")),
+			)
 		"tick_error":
 			push_warning("[game_world] tick_error agent=%s err=%s" % [agent_id, payload.get("error", "?")])
 		"pong":

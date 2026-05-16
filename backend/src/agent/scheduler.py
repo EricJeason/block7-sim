@@ -88,6 +88,17 @@ class PerceptionListener(Protocol):
         ...
 
 
+class DialogueGuard(Protocol):
+    """Block I:scheduler 用此查询 agent 是否在对话中。
+
+    在对话中的 agent,tick_agent 跳过 action 推进 + 不触发新 thinking。
+    实现见 src.agent.dialogue.DialogueManager。
+    """
+
+    def is_agent_busy_with_dialogue(self, agent_id: str) -> bool:
+        ...
+
+
 class ActionScheduler:
     def __init__(
         self,
@@ -95,11 +106,13 @@ class ActionScheduler:
         memory_store: MemoryStore | None = None,
         config: SchedulerConfig | None = None,
         perception_broker: PerceptionListener | None = None,
+        dialogue_guard: DialogueGuard | None = None,
     ) -> None:
         self._planner = planner or IdlePlanProvider()
         self._memory_store = memory_store
         self._config = config or SchedulerConfig()
         self._perception_broker = perception_broker
+        self._dialogue_guard = dialogue_guard
         self._agents: dict[str, AgentRuntime] = {}
         self._discarded_planning_tasks: set[asyncio.Task[list[QueuedAction]]] = set()
         self._memory_write_tasks: set[asyncio.Task[None]] = set()
@@ -143,6 +156,14 @@ class ActionScheduler:
         result = TickResult(agent_id=agent_id)
 
         await self._collect_finished_thinking(agent, result, game_time)
+
+        # Block I:对话中的 agent 暂停 action 推进 + 不触发新 thinking。
+        # 仍然收 thinking 结果(如果之前任务回来了),但不推 action / 不再触发新 plan。
+        if (
+            self._dialogue_guard is not None
+            and self._dialogue_guard.is_agent_busy_with_dialogue(agent_id)
+        ):
+            return result
 
         if agent.current_action is not None:
             agent.current_action.advance(dt)

@@ -305,6 +305,29 @@ class SimEngine:
                 )
             )
 
+    # ------------------------------------------------------ external emitter
+
+    def emit_event(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+        agent_id: str | None = None,
+    ) -> None:
+        """通用 SimEvent 发布接口,供外部模块(如 DialogueManager)推送事件给订阅者。
+
+        type 已存在的:tick / action_started / action_completed / thinking_started /
+        thinking_completed / agent_moved / tick_error / paused_changed / hello。
+        Block I 新增:dialogue_started / dialogue_line / dialogue_ended。
+        """
+        self._publish(
+            SimEvent(
+                type=event_type,
+                agent_id=agent_id,
+                game_time=self.game_time,
+                payload=payload,
+            )
+        )
+
     # ------------------------------------------------------- snapshot helpers
 
     def world_snapshot(self) -> dict[str, Any]:

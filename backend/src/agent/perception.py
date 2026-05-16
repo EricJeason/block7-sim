@@ -20,6 +20,7 @@ from src.agent.runtime import AgentRuntime, QueuedAction
 from src.memory.store import Memory, MemoryStore
 
 if TYPE_CHECKING:  # 仅类型注解,避免循环 import 与运行期硬依赖
+    from src.agent.dialogue import DialogueManager
     from src.agent.planning import LocationLoader, PersonaLoader
 
 logger = logging.getLogger(__name__)
@@ -45,11 +46,13 @@ class PerceptionBroker:
         persona_loader: "PersonaLoader | None" = None,
         location_loader: "LocationLoader | None" = None,
         default_importance: int = 3,
+        dialogue_manager: "DialogueManager | None" = None,
     ) -> None:
         self.memory_store = memory_store
         self.persona_loader = persona_loader
         self.location_loader = location_loader
         self.default_importance = default_importance
+        self.dialogue_manager = dialogue_manager
 
     async def on_action_completed(
         self,
@@ -117,7 +120,34 @@ class PerceptionBroker:
                     actor.agent_id,
                     exc,
                 )
+
+        # Block I:talk_to action 完成 → 尝试启动对话(在常规 observation 之外)
+        self._maybe_trigger_dialogue(actor, action, all_agents, game_time)
         return written
+
+    # --------------------------------------------------------- dialogue trigger
+
+    def _maybe_trigger_dialogue(
+        self,
+        actor: AgentRuntime,
+        action: QueuedAction,
+        all_agents: Iterable[AgentRuntime],
+        game_time: float,
+    ) -> None:
+        """talk_to 完成 + 目标在同场所 → 尝试启动对话。
+
+        DialogueManager.try_start_session 内部会再校验同场所、不冲突等。
+        """
+        if action.action_type != "talk_to" or self.dialogue_manager is None:
+            return
+        args = action.args if isinstance(action.args, dict) else {}
+        target_id = args.get("agent_id")
+        if not isinstance(target_id, str) or not target_id:
+            return
+        target = next((a for a in all_agents if a.agent_id == target_id), None)
+        if target is None:
+            return
+        self.dialogue_manager.try_start_session(actor, target, game_time)
 
     # ------------------------------------------------------------ side effect
 
