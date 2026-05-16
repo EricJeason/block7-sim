@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_loc_north_frost_workshop"]
+
+[ext_resource type="PackedScene" uid="uid://b7sim_location_view" path="res://scenes/LocationView.tscn" id="1_base"]
+
+[node name="LocationView" instance=ExtResource("1_base")]
+location_id = "north_frost_workshop"
+placeholder_color = Color(0.28, 0.32, 0.42, 1)

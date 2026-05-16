@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_loc_lao_song_plaza"]
+
+[ext_resource type="PackedScene" uid="uid://b7sim_location_view" path="res://scenes/LocationView.tscn" id="1_base"]
+
+[node name="LocationView" instance=ExtResource("1_base")]
+location_id = "lao_song_plaza"
+placeholder_color = Color(0.45, 0.42, 0.32, 1)
