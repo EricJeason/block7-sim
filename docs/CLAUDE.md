@@ -1,7 +1,7 @@
 # CLAUDE.md — Block-7 项目工作守则
 
 **项目代号**:Block-7 生成式智能体社会模拟器(暮谷镇)
-**当前阶段**:Day 1 backend MVP 完成(A→F + 暮谷镇);**下一步:Block H(API + WebSocket + Godot 联调)**
+**当前阶段**:Day 1 backend + Godot 联调全部跑通(A→F + H);**下一步:Block G(反思+压缩) 或 Block I(对话状态机) 由 Eric 拍板**
 **协作主理**:Eric(高三学生,非专职程序员)
 
 ---
@@ -41,10 +41,13 @@
 | D | AgentRuntime + Action Queue 调度器 | ✅ Codex 实现 |
 | E | 粗 + 细两层规划器 | ✅ |
 | F | Perception 同场所传播 | ✅ |
-| **G** | 每日反思 + memory 压缩 | ⏳ |
-| **H** | FastAPI + WebSocket + Godot 联调 | ⏳ 下一步 |
+| H | FastAPI + WebSocket + Godot 端联调 | ✅ 后端 51ee432 + Godot 端 387306f |
+| **G** | 每日反思 + memory 压缩 | ⏳ 待 Eric 拍板下一步 |
+| **I** | 对话状态机 | ⏳ Day 2 范围,但视觉冲击大 |
 
-测试基线:**69 单测全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)。
+测试基线:**91 单测全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)。
+
+**Day 1 MVP 实质完成**:sim 引擎 + Godot 端实时显示,12 agent 真实活动可观察。
 
 ---
 

@@ -1,14 +1,14 @@
 # Day 1 工作总结
 
-> 期间:2026-05-02(Day 1 上半,Block A/B/C)+ 2026-05-10(Day 1 下半,世界观敲定 + D 合并 + E + F)
+> 期间:2026-05-02(Block A/B/C)+ 2026-05-10(世界观敲定 + D 合并 + E + F + H 后端)+ 2026-05-16(Block H Godot 端联调)
 > 协作:Eric(主理) × Claude Opus 4.7 × Codex (ChatGPT 5.5,负责 Block D)
-> 状态:Day 1 backend MVP 实质完成 (A→F),进入收尾(G/H 待做)
+> 状态:**Day 1 端到端 MVP 完成 (A→F + H),Eric 已在 Godot 端实测看到 12 个 agent 真实活动**。剩 Block G(反思+压缩)可选。
 
 ---
 
 ## 一句话总结
 
-按 v0.2 设计文档原本"两天紧急开发"的节奏,**Day 1 单日交付了 6 个 Block (A→F) + 暮谷镇世界观敲定 + 真实 API 验证**——超额完成了原计划 Day 1 + Day 2 上午的全部 backend 工作。Sim 引擎内部已闭环:Planner 产出 Action → Scheduler 推进 → Action 完成 → Perception 写 observation → 下一轮 Planner 自然感知到。
+按 v0.2 设计文档原本"两天紧急开发"的节奏,**Day 1 累计交付了 A→F + H(后端+Godot 端)+ 暮谷镇世界观 + 4 张场景背景 + 艾琳全套像素 sprite + 真实 API 验证 + 端到端联调**——超额完成原计划 Day 1+Day 2 上午的全部内容。端到端闭环:Planner 产 action → Scheduler 推进 → Action 完成 → Perception 写 observation → SimEngine 发 SimEvent → WS 推到 Godot → GameWorld 镜像 → LocationView 显示 + Inspector 看 memory。
 
 ---
 
@@ -31,6 +31,18 @@
 | 22:43 | c41ac02 | E | **粗 + 细两层规划器**:LLMPlanner 实现 PlanProvider Protocol,PersonaLoader / LocationLoader / build_rich_layer_1,20 测试,全 mock |
 | 22:56 | 7525ccd | E | **真实 API 验证 + 三处修复**:暴露 max_tokens / timeout / location id 三个 bug 一并修掉,跑通林秋真实 daily + fine |
 | 23:08 | 666e870 | F | **Perception 同场所事件传播**:PerceptionBroker + scheduler 接入 + 17 测试,完成 sim 内部闭环 |
+| —     | 51ee432 | H 后端 | **SimEngine + HTTP + WebSocket**:lifespan 启动后台 tick + 4 个路由 + WS 推 7 类事件 + 20 个 API/Engine 单测 |
+
+### 第三阶段:2026-05-16(Block H Godot 端联调)
+
+| 时间 | Commit | Block | 内容 |
+|---|---|---|---|
+| 22:50 | 387306f | H Godot | **Godot 端完整实装**:BackendClient(HTTP+WS+重连)+ GameWorld autoload + 4 个 inherited LocationView + AgentNode(walk sprite/色块兜底)+ Main HUD(时钟/连接/Inspector/Memory)+ 数字键 1/2/3/4 切场所 + 艾琳像素 sprite + 4 张场景背景图 |
+
+调试中暴露并修掉的 3 件事:
+1. **backend `config.py` 路径解析**:`./backend/data/sim.db` 这种相对路径基于 cwd 解析,Eric 从 worktree/主仓库 / 不同 cd 启动都崩。改为基于"项目根"解析 → 任何 cwd 都对
+2. **Godot WebSocketPeer 状态机 bug**:我代码看到 STATE_CLOSED 就 `_reconnect_timer = 5s` 然后 `return` —— 但 Godot 4 WS 握手必须**每帧 poll() 才能推进**,这导致 5 秒后 connect_to_url 又陷入同样问题 → 永远连不上。修复:重连倒计时不阻塞 poll,重连决策只在 `_on_state_change` 真发生时触发
+3. **GDScript 严格类型 vs JSON null**:backend hello 事件中 `agent_id = None` → JSON `null` 赋给 `String` 直接崩。加 `_str_or_empty` / `_float_or_zero` 兜底
 
 ---
 
@@ -119,30 +131,29 @@ think_high 自发引用了 persona 多个层面 + catalyst 元素:
 - 关系加权 importance:观察者与 actor 有 initial_relationship → memory importance +1
 - 4 个场所 / 12 个角色全部从 YAML 加载,内存缓存
 
-### 还做不到(Block G/H 待补)
-- 反思:每日游戏日结束时回顾当日 memory 提炼高层 reflection
-- 旧 memory 压缩归档(防止跑长游戏 token 爆炸)
-- FastAPI 路由暴露 agent 状态 + memory 历史
-- WebSocket 推送 sim 事件流给 Godot 客户端
-- Godot 端真正显示角色行为(目前只有 hello world 标签)
+### 还做不到(Block G/I 待补)
+- 反思(Block G):每日游戏日结束时回顾当日 memory 提炼高层 reflection
+- 旧 memory 压缩归档(Block G):防止跑长游戏 token 爆炸
+- 对话状态机(Block I,Day 2 范围):两个 agent 真的开口对话,LLM 多轮生成对白
+- "星露谷感"(Block J,独立 1.5-2 天工作):TileMap + Collision + 寻路 + AnimatedSprite + Camera2D follow + 可交互 Area2D —— 当前 Godot 端**只是一张贴图 + 12 个静态 sprite 固定 4×3 网格**,Eric 反馈"跟星露谷差到姥姥家了",这是真的,但**不是 Block H 的范围**
 
 ---
 
 ## 测试覆盖
 
 ```
-69 passed in 1.05s
-- test_memory.py     :  7  Block C
-- test_perception.py : 17  Block F
-- test_planning.py   : 20  Block E
-- test_scheduler.py  : 20  Block D (Codex)
-- test_smoke.py      :  5  Block A/B + 暮谷镇锁定
+91 passed (含 3 真实 API 集成测试,首次跑 ~165s,后续轻量 ~3s)
+- test_memory.py             :  7  Block C
+- test_perception.py         : 17  Block F
+- test_planning.py           : 20  Block E
+- test_scheduler.py          : 20  Block D (Codex)
+- test_api.py                : 11  Block H 后端(HTTP + WS)
+- test_sim_engine.py         :  9  Block H 后端(SimEngine 注册/tick/订阅)
+- test_smoke.py              :  5  Block A/B + 暮谷镇锁定
+- test_cache_hit_rate.py     :  1  真实 API,需 .env
+- test_memory_integration.py :  1  真实 API
+- test_planning_integration.py: 1  真实 API
 ```
-
-不计入常规跑(需真实 API key):
-- test_cache_hit_rate.py:35 轮真实 API 跑命中率回归(¥0.02 / 次)
-- test_memory_integration.py:1 次真实 importance 打分(¥0.0001)
-- test_planning_integration.py:1 次真实 daily + fine(¥0.026)
 
 ---
 
