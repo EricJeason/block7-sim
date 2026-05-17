@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Block-7 一键 push 到 GitHub
 #
 # 用法:Eric 双击执行 或 PowerShell 跑

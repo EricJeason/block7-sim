@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 # Block-7 Backend 启动脚本
 # 用法:.\launch_backend.ps1 [default|fast]
 #   default — paused 启动,零成本(等 Godot 里点 ▶)

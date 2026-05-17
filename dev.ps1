@@ -1,4 +1,4 @@
-# 用法:.\dev.ps1 install | backend | test | lint
+﻿# 用法:.\dev.ps1 install | backend | test | lint
 param([string]$cmd = "help")
 switch ($cmd) {
     "install" { Push-Location backend; pip install -e ".[dev]"; Pop-Location }
