@@ -84,6 +84,22 @@ def test_world_returns_locations_and_agents(client: TestClient) -> None:
     assert "silent_tower_ruins" in loc_ids
 
 
+def test_world_returns_anchors_and_name_en(client: TestClient) -> None:
+    """F2: /world 应返回每个 location 的 name_en + anchors[](前端站位用)。"""
+    r = client.get("/world")
+    data = r.json()
+    plaza = next(loc for loc in data["locations"] if loc["id"] == "lao_song_plaza")
+    assert plaza["name_en"] == "Old Pine Plaza"
+    anchors = plaza["anchors"]
+    assert isinstance(anchors, list)
+    assert len(anchors) >= 6
+    # 每个 anchor 有 id / label / x / y
+    a0 = anchors[0]
+    assert {"id", "label", "x", "y"}.issubset(a0.keys())
+    assert isinstance(a0["x"], int)
+    assert isinstance(a0["y"], int)
+
+
 def test_world_503_when_no_engine_attached() -> None:
     """没挂 sim_engine 时返回 503,而不是崩溃。"""
     bare_app = FastAPI()
@@ -366,3 +382,60 @@ async def test_ws_receives_tick_events(
                     assert msg["payload"]["action_type"] == "work"
                     return
             pytest.fail(f"未收到 action_started for agent_01, 只看到: {seen_types}")
+
+
+# ============================================================================
+#                            F2 玩家绑定(扮演模式)
+# ============================================================================
+
+
+def test_player_get_initial_none(client: TestClient) -> None:
+    """默认无玩家绑定(上帝模式)。"""
+    r = client.get("/sim/player")
+    assert r.status_code == 200
+    assert r.json()["player_agent_id"] is None
+
+
+def test_player_bind_and_get(client: TestClient, engine: SimEngine) -> None:
+    """POST /sim/player/bind 设置 agent_id → GET 能查到。"""
+    r = client.post("/sim/player/bind", json={"agent_id": "agent_01"})
+    assert r.status_code == 200
+    assert r.json()["player_agent_id"] == "agent_01"
+    assert engine.scheduler.get_player_agent_id() == "agent_01"
+
+    # 解绑
+    r = client.post("/sim/player/bind", json={"agent_id": None})
+    assert r.status_code == 200
+    assert r.json()["player_agent_id"] is None
+
+
+def test_player_bind_unknown_agent_404(client: TestClient) -> None:
+    """绑定不存在的 agent_id 返回 404。"""
+    r = client.post("/sim/player/bind", json={"agent_id": "agent_999"})
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_player_agent_skips_llm_thinking(engine: SimEngine) -> None:
+    """玩家 agent 在 tick 不应触发 LLM 思考(由 Godot 端控制)。"""
+    # 绑定 agent_01 为玩家
+    engine.scheduler.set_player_agent("agent_01")
+    agent = engine.scheduler.get_agent("agent_01")
+    assert agent.pending_thinking is None
+
+    # tick 数次 — 玩家 agent 不应触发 _start_background_thinking
+    for _ in range(3):
+        result = await engine.scheduler.tick_agent(
+            "agent_01", game_time=engine.game_time, dt=10.0
+        )
+        assert result.thinking_started is False
+    assert agent.pending_thinking is None
+
+    # 解绑后,玩家 agent 应恢复 LLM 思考触发
+    engine.scheduler.set_player_agent(None)
+    result = await engine.scheduler.tick_agent(
+        "agent_01", game_time=engine.game_time, dt=10.0
+    )
+    # 注意:thinking_started 是否 True 取决于 queue / pending state,
+    # 这里只验证"解绑后不再被强制跳过"(玩家身份解除)
+    assert engine.scheduler.is_player_agent("agent_01") is False

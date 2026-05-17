@@ -116,6 +116,9 @@ class ActionScheduler:
         self._agents: dict[str, AgentRuntime] = {}
         self._discarded_planning_tasks: set[asyncio.Task[list[QueuedAction]]] = set()
         self._memory_write_tasks: set[asyncio.Task[None]] = set()
+        # F2: 绑定为玩家的 agent_id。该 agent 的 LLM 思考被跳过(玩家手动决策),
+        # current_action / location 由 Godot 客户端控制。None = 上帝模式。
+        self._player_agent_id: str | None = None
 
     def register_agent(self, agent: AgentRuntime) -> None:
         self._agents[agent.agent_id] = agent
@@ -126,6 +129,25 @@ class ActionScheduler:
             return self._agents[agent_id]
         except KeyError as exc:
             raise KeyError(f"agent not registered: {agent_id}") from exc
+
+    # ----------------------------------------------------- F2 player binding
+
+    def set_player_agent(self, agent_id: str | None) -> None:
+        """绑定 agent_id 为玩家控制(扮演模式)。
+
+        该 agent 的 LLM 思考被跳过 — Godot 客户端通过 WASD / E 互动控制其位置 + action。
+        传 None 解绑(全部 agent 回归 LLM 控制,上帝模式)。
+        """
+        if agent_id is not None and agent_id not in self._agents:
+            raise KeyError(f"unknown agent_id: {agent_id}")
+        self._player_agent_id = agent_id
+        logger.info("[scheduler] player_agent_id = %s", agent_id)
+
+    def get_player_agent_id(self) -> str | None:
+        return self._player_agent_id
+
+    def is_player_agent(self, agent_id: str) -> bool:
+        return self._player_agent_id is not None and agent_id == self._player_agent_id
 
     async def enqueue(
         self,
@@ -192,7 +214,11 @@ class ActionScheduler:
             )
 
         remaining = agent.total_remaining_seconds()
-        if remaining < self._config.thinking_trigger_threshold and agent.pending_thinking is None:
+        if (
+            remaining < self._config.thinking_trigger_threshold
+            and agent.pending_thinking is None
+            and not self.is_player_agent(agent_id)  # F2: 玩家 agent 不触发 LLM 思考
+        ):
             reason = ThinkingReason.EMPTY_QUEUE if remaining <= 0 else ThinkingReason.LOW_WATERMARK
             self._start_background_thinking(agent, reason, game_time, tick_context)
             result.thinking_started = True

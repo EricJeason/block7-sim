@@ -545,10 +545,14 @@ class SimEngine:
         """初始化时给客户端的世界快照:locations + agents 当前分布 + 元数据。"""
         locations = []
         for loc in self.location_loader.all().values():
+            extra = self.location_loader.extra(loc.location_id)
             locations.append(
                 {
                     "id": loc.location_id,
                     "name": loc.name,
+                    # F2: 英文场所名 + 锚点(给前端 LocationLabel / NPC 站位)
+                    "name_en": extra.get("name_en", ""),
+                    "anchors": extra.get("anchors", []),
                     "type": loc.type,
                     "description": loc.description,
                     "open_hours": loc.open_hours,

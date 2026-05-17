@@ -31,6 +31,13 @@ class SetApiKeyRequest(BaseModel):
     persist: bool = Field(default=True, description="是否写入项目根 .env 文件(默认 True)")
 
 
+class BindPlayerRequest(BaseModel):
+    agent_id: str | None = Field(
+        default=None,
+        description="玩家绑定到的 agent_id(如 agent_04);传 null 解绑回到上帝模式",
+    )
+
+
 def _get_engine(request: Request) -> SimEngine:
     engine = getattr(request.app.state, "sim_engine", None)
     if engine is None:
@@ -114,6 +121,29 @@ async def set_api_key(req: SetApiKeyRequest, request: Request) -> dict[str, Any]
         "masked": llm_client.masked_api_key(),
         "persisted_to_env": persisted,
     }
+
+
+@router.get("/sim/player")
+async def get_player(request: Request) -> dict[str, Any]:
+    """F2: 查询当前玩家绑定的 agent_id(None = 上帝模式)。"""
+    engine = _get_engine(request)
+    return {"player_agent_id": engine.scheduler.get_player_agent_id()}
+
+
+@router.post("/sim/player/bind")
+async def bind_player(req: BindPlayerRequest, request: Request) -> dict[str, Any]:
+    """F2: 绑定 agent_id 为玩家控制(扮演模式)。
+
+    - 该 agent 的 LLM 思考被跳过(玩家通过 WASD/E 互动手动决策)
+    - 传 agent_id=None 解绑,回到上帝模式(所有 agent 由 LLM 控制)
+    - 默认 Godot 客户端启动时调此绑定 agent_04(艾琳)
+    """
+    engine = _get_engine(request)
+    try:
+        engine.scheduler.set_player_agent(req.agent_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+    return {"player_agent_id": engine.scheduler.get_player_agent_id()}
 
 
 @router.post("/sim/pause")

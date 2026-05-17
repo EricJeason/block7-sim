@@ -173,6 +173,10 @@ class LocationLoader:
             Path(locations_file) if locations_file else DEFAULT_LOCATIONS_FILE
         )
         self._cache: dict[str, LocationInfo] | None = None
+        # F2: yaml 里 LocationInfo dataclass 之外的字段(name_en / anchors)。
+        # 这些字段**不进入 LLM prompt**(保护 Layer 0/1/2 cache 字节稳定),
+        # 仅给前端使用(锚点站位 / 英文场所名)。通过 extra() 方法暴露。
+        self._extra_cache: dict[str, dict[str, Any]] | None = None
 
     def all(self) -> dict[str, LocationInfo]:
         if self._cache is None:
@@ -184,6 +188,33 @@ class LocationLoader:
             return self.all()[location_id]
         except KeyError as exc:
             raise KeyError(f"unknown location: {location_id}") from exc
+
+    def extra(self, location_id: str) -> dict[str, Any]:
+        """获取 LocationInfo 之外的 yaml 字段(name_en / anchors)。
+
+        与 LocationInfo dataclass 分离,保证不影响 Planner / LLM prompt。
+        缺失字段返回空 dict(空字符串 / 空 list)。
+        """
+        if self._extra_cache is None:
+            self._load_extra()
+        assert self._extra_cache is not None
+        return self._extra_cache.get(location_id, {"name_en": "", "anchors": []})
+
+    def _load_extra(self) -> None:
+        if not self.locations_file.exists():
+            self._extra_cache = {}
+            return
+        raw = yaml.safe_load(self.locations_file.read_text(encoding="utf-8"))
+        extra: dict[str, dict[str, Any]] = {}
+        for entry in (raw or {}).get("locations", []):
+            if not isinstance(entry, dict):
+                continue
+            loc_id = str(entry["id"])
+            extra[loc_id] = {
+                "name_en": str(entry.get("name_en", "")),
+                "anchors": [dict(a) for a in (entry.get("anchors") or [])],
+            }
+        self._extra_cache = extra
 
     def _load(self) -> dict[str, LocationInfo]:
         if not self.locations_file.exists():
