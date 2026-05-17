@@ -51,10 +51,14 @@
 | I | 对话状态机(DialogueSession + SpeechBubble) | ✅ afd0349 + 5913bb7 + d42cb3e |
 | G | 每日反思 + memory 压缩(跨日触发) | ✅ f25e9fd |
 
-测试基线:**115 mock 测试全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)。
+测试基线:**122 mock 测试全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)。
 
 **Day 1 MVP 全部完成**:sim 引擎 + Godot 端实时显示 + 对话 + 反思 + 压缩。
 12 agent 真实活动 + 对话 + 跨日反思,论文级别的 emergent narrative。
+
+**2026-05-17 持续打磨 6 commit** 完成:MemoryPanel filter tab、JSON 容错、
+agent 名牌 sorted index 站位、💭 残留修复、talk_to prompt 微调、
+GET /sim/health + LLM 累计成本统计。
 
 ---
 

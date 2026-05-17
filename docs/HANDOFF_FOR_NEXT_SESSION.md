@@ -29,8 +29,9 @@
 
 ---
 
-## Day 1 MVP 完成情况(2026-05-17 23 个 commit 的全图)
+## Day 1 MVP 完成情况(2026-05-17,共 19 个 commit)
 
+**Day 1 主线**(Block H/BC/I/G):
 ```
 387306f  Block H Godot 端实装
 c9c8bd1  docs 同步
@@ -39,14 +40,25 @@ afd0349  Block I 对话状态机 初版
 5913bb7  Block I bug fix(observers / 中文名反查)
 d42cb3e  Block I 精修(气泡时长 / LoadingOverlay)
 f25e9fd  Block G 反思 + 压缩
-24207d7  docs 同步 Day 1 MVP 完成
+24207d7  docs Day 1 MVP 完成
 f2756e5  精修轮次 2(fallback / 时钟插值 / Block G 可见化)
 a5b808f  LoadingOverlay 兜底(超时 / 反思触发即完成)
 492145b  反思并发限制 + memory 面板反思高亮
 f73d767  启动脚本端口冲突 + LoadingOverlay 隐藏 game_time
+7a64997  docs 兵分两路交接包
 ```
 
-**测试基线**:115 mock 测试全绿 + 3 真实 API 集成测试(¥0.05/次,需 .env)
+**"持续打磨"6 commit**(Eric 出差,Claude Code 自动跑的):
+```
+d8cdc6d  P1.1 MemoryPanel 加 4 个 filter tab
+87a9bcd  P1.2 daily/fine/reflection JSON parse 容错
+39d1165  P1.3 agent 名牌站位用 sorted index 代替 hash
+7329560  P2.1 💭 思考指示器残留修复
+cba5c24  P2.3 fine plan prompt 鼓励 LLM 适时产 talk_to
+4273001  P3 GET /sim/health + LLM 累计成本跟踪
+```
+
+**测试基线**:**122 mock 测试全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)
 
 ---
 
@@ -83,24 +95,25 @@ f73d767  启动脚本端口冲突 + LoadingOverlay 隐藏 game_time
 
 > 这是我接手"自动化打磨"后给自己排的工作。**请下一任 session 检查这些任务的状态**——它们应该作为独立 commit 出现在 git log。
 
-### 优先级 1(必做)
-- [ ] **修 #1 R/O/P 快捷键 / memory 类型 tab**——MemoryPanel 顶部加 4 个 Button(全部 / 🌒 反思 / 👁 观察 / 📋 计划),点击切换 filter
-- [ ] **修 #6 daily JSON parse 容错**——_parse_daily_slots 用更宽松正则,LLM 偶尔输出带 markdown 包裹时也能解析
-- [ ] **修 #4 _slot_position_for 撞位**——改用 sorted agent_id index 而不是 hash
+### 优先级 1(已全部完成 ✅)
+- [x] **修 #1 R/O/P 快捷键 / memory 类型 tab** → commit `d8cdc6d` (MemoryPanel 加 4 toggle button)
+- [x] **修 #6 daily JSON parse 容错** → commit `87a9bcd` (_robust_json_loads + 5 单测)
+- [x] **修 #4 _slot_position_for 撞位** → commit `39d1165` (sorted agent_id index 代替 hash)
 
-### 优先级 2(应做)
-- [ ] **修 #3 💭 残留**——AgentNode.on_thinking_completed 加 `await get_tree().process_frame` 确保下一帧不再可见
-- [ ] **修 #2 Inspector 撞位**——把 ScrollContainer 宽度从 258 扩到 290;或者 inspector 列表项加 padding
-- [ ] **加 GET /agent/{id}/reflections 专用端点**——返回仅 type=reflection 的最近 N 条,Godot 端可单独拉
+### 优先级 2(部分完成)
+- [x] **修 #3 💭 残留** → commit `7329560` (thinking_failed event + 30s 防御 timeout)
+- [ ] **修 #2 Inspector 撞位** —— 留 Day 2 UI 重做时一起改
+- [ ] **加 GET /agent/{id}/reflections 专用端点** —— 跳过,现有 GET /agent/{id}/memories?type=reflection 已能拿
+- [x] **加 daily plan / fine plan prompt 微调** → commit `cba5c24` (鼓励 LLM 适时产 talk_to)
 
-### 优先级 3(可选)
-- [ ] **修 #7 反思 0 条问题**——放宽 min_importance=4→3,或者加 LLM 重试一次
-- [ ] **加 backend 健康检查路由**——GET /sim/health 返回 reflection 失败率、平均 LLM 延迟、各 model token 消耗
-- [ ] **加 daily plan prompt 微调**——Eric 测试时偶尔看到 daily plan 不调用 talk_to(对话频率低),加规则 "至少 1-2 个时段考虑 talk_to(args.agent_id)"
+### 优先级 3(部分完成)
+- [ ] **修 #7 反思 0 条问题** —— 加速模式下偶发,正常 time_scale=60 不重现,暂不动
+- [x] **加 backend 健康检查路由** → commit `4273001` (GET /sim/health + LLM 累计统计 + 缓存命中率)
 
-### 优先级 4(实验性)
+### 优先级 4(未做,留给下一任)
 - [ ] **跑长时间 sim 压测**——在 LL 模式(low LLM,只用 Flash)跑 2-3 游戏日,看 memory 表增长曲线 + 压缩有效性
 - [ ] **加 sim 历史回放**——把每次跑的 SimEvent 序列化到 JSON,后续可以重放
+- [ ] **Inspector / TimePanel / ReflectionPanel UI 装饰**——等 Claude Design 设计稿出来再做
 
 ---
 
