@@ -47,6 +47,9 @@ backend/logs/
 # Claude Code local cache
 .claude/
 
+# Design preview build artifacts (recreatable from project/*.jsx sources)
+docs/design/**/*standalone.html
+
 # 临时文件
 *.bak
 *.tmp

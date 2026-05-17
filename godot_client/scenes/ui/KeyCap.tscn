@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_key_cap"]
+
+[ext_resource type="Script" path="res://scripts/ui/key_cap.gd" id="1_key_cap_script"]
+
+[node name="KeyCap" type="PanelContainer"]
+script = ExtResource("1_key_cap_script")
+
+[node name="Label" type="Label" parent="."]
+text = "E"

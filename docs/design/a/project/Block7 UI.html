@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>Block-7 · 暮谷镇 · UI 设计稿</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=Caveat:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0;
+    background: #f0eee9;
+    font-family: 'Cormorant Garamond', 'Noto Serif SC', serif;
+    color: #2a251f;
+  }
+  /* Pixel rendering for scene/sprite layers */
+  .pixelated {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+  /* Parchment chrome — reused across panels */
+  .parchment {
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,250,235,0.65) 0%, transparent 55%),
+      radial-gradient(ellipse at 75% 85%, rgba(180,150,110,0.25) 0%, transparent 60%),
+      linear-gradient(180deg, #ecddc1 0%, #e3d3b3 100%);
+    color: #3d2f1f;
+    box-shadow:
+      inset 0 0 0 1px rgba(107, 88, 64, 0.5),
+      inset 0 0 18px rgba(107, 88, 64, 0.18),
+      0 6px 24px rgba(40, 28, 16, 0.35);
+  }
+  .parchment::before {
+    /* faint paper grain */
+    content: "";
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(107,88,64,0.06) 0 1px, transparent 1px),
+      radial-gradient(circle at 70% 60%, rgba(107,88,64,0.05) 0 1px, transparent 1px),
+      radial-gradient(circle at 40% 80%, rgba(107,88,64,0.04) 0 1px, transparent 1px);
+    background-size: 9px 9px, 13px 13px, 17px 17px;
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+  }
+  .wood {
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(80,55,30,0.12) 0 1px,
+        transparent 1px 5px),
+      repeating-linear-gradient(90deg,
+        rgba(60,40,20,0.08) 0 1px,
+        transparent 1px 17px),
+      linear-gradient(180deg, #d9bf94 0%, #c4a578 50%, #b6915f 100%);
+    box-shadow:
+      inset 0 -3px 0 #8b6f47,
+      inset 0 2px 0 #e8d2a6,
+      inset 0 0 0 1px #6b5840,
+      0 4px 10px rgba(20,12,4,0.4);
+    color: #3d2f1f;
+  }
+  /* Ink hairline divider used inside panels */
+  .ink-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #6b5840 18%, #6b5840 82%, transparent);
+    opacity: 0.55;
+  }
+  /* Wax seal / accent */
+  .wax {
+    background: radial-gradient(circle at 35% 30%, #b6593a 0%, #8b4513 55%, #5e2a0a 100%);
+    color: #f4e6cf;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.3);
+  }
+  /* Cursor for clickable game elements inside the prototype */
+  .game-cursor { cursor: crosshair; }
+
+  /* Used by S4 (read your own heart) — handwriting on cream paper */
+  .handwriting {
+    font-family: 'Caveat', 'Ma Shan Zheng', cursive;
+    color: #3d2f1f;
+  }
+
+  .mono {
+    font-family: 'IBM Plex Mono', 'Noto Sans SC', monospace;
+  }
+  .serif {
+    font-family: 'Cormorant Garamond', 'Noto Serif SC', serif;
+  }
+
+  /* Scene 1 — Lao Song Plaza pixel background, layered SVG via data-uri */
+  .scene { position: absolute; inset: 0; overflow: hidden; }
+
+  /* Subtle vignette to draw eye to center */
+  .vignette::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(20,12,4,0.45) 100%);
+    pointer-events: none;
+  }
+
+  /* Pulse glow used for selected NPC E-hint */
+  @keyframes selpulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,220,196,0.7); }
+    50%      { box-shadow: 0 0 0 6px rgba(232,220,196,0); }
+  }
+  .selpulse { animation: selpulse 1.4s ease-in-out infinite; }
+
+  @keyframes dreamdrift {
+    0%   { transform: translate(-50%, -10px); opacity: 0; }
+    40%  { opacity: 0.7; }
+    100% { transform: translate(-50%, -36px); opacity: 0; }
+  }
+  .dreamparticle {
+    position: absolute; left: 50%; bottom: 100%;
+    width: 2px; height: 2px; background: #c9b1d4;
+    box-shadow: 0 0 6px 1px rgba(201,177,212,0.55);
+    animation: dreamdrift 3.4s ease-out infinite;
+  }
+
+  /* Soft fade-in for modal contents */
+  @keyframes modalfade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .modalfade { animation: modalfade 360ms ease-out both; }
+
+  /* Cross-day reflection ink bleed */
+  @keyframes inkbleed {
+    from { opacity: 0; filter: blur(2px); }
+    to   { opacity: 1; filter: blur(0); }
+  }
+  .inkbleed { animation: inkbleed 480ms ease-out both; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="pixel.jsx"></script>
+<script type="text/babel" src="portraits.jsx"></script>
+<script type="text/babel" src="scenes.jsx"></script>
+<script type="text/babel" src="ui-elements.jsx"></script>
+<script type="text/babel" src="modals.jsx"></script>
+<script type="text/babel" src="rpg-modals.jsx"></script>
+<script type="text/babel" src="main-screen.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

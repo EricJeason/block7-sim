@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_f0_chrome_test"]
+
+[ext_resource type="Script" path="res://scripts/ui/f0_chrome_test.gd" id="1_f0_chrome_test"]
+
+[node name="F0ChromeTest" type="Node2D"]
+script = ExtResource("1_f0_chrome_test")
