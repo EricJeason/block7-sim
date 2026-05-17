@@ -28,11 +28,13 @@ from fastapi import FastAPI
 from src.agent.dialogue import DialogueManager
 from src.agent.perception import PerceptionBroker
 from src.agent.planning import LLMPlanner, LocationLoader, PersonaLoader
+from src.agent.reflection import ReflectionRunner
 from src.agent.scheduler import ActionScheduler, SchedulerConfig
 from src.api.routes import router as api_router
 from src.api.websocket import router as ws_router
 from src.config import settings
 from src.llm.deepseek import DeepSeekClient
+from src.memory.compression import MemoryCompressor
 from src.memory.schema import init_db
 from src.memory.store import MemoryStore
 from src.sim import SimEngine
@@ -70,6 +72,7 @@ async def lifespan(app: FastAPI):
     tick_interval = _env_float("BLOCK7_TICK_INTERVAL", 1.0)
     thinking_threshold = _env_float("BLOCK7_THINKING_THRESHOLD", 120.0)
     max_actions = int(_env_float("BLOCK7_MAX_ACTIONS", 15.0))
+    enable_daily_reflection = _env_bool("BLOCK7_DAILY_REFLECTION", True)
 
     logger.info(
         "[main] lifespan startup: auto_tick=%s start_paused=%s time_scale=%g "
@@ -129,6 +132,20 @@ async def lifespan(app: FastAPI):
         dialogue_guard=dialogue_manager,
     )
 
+    # Block G:每日反思 + memory 压缩(跨日触发)
+    reflection_runner = ReflectionRunner(
+        llm=llm_client,
+        persona_loader=persona_loader,
+        memory_store=memory_store,
+        model_pro=settings.deepseek_model_pro,
+    )
+    compressor = MemoryCompressor(
+        store=memory_store,
+        llm=llm_client,
+        model=settings.deepseek_model_flash,
+        persona_loader=persona_loader,
+    )
+
     # 4. SimEngine 启动
     engine = SimEngine(
         scheduler=scheduler,
@@ -137,6 +154,9 @@ async def lifespan(app: FastAPI):
         location_loader=location_loader,
         time_scale=time_scale,
         tick_interval_seconds=tick_interval,
+        reflection_runner=reflection_runner,
+        compressor=compressor,
+        enable_daily_reflection=enable_daily_reflection,
     )
     # 回填 emit_event:DialogueManager 现在可以推 dialogue_* 事件给 WS 订阅者
     dialogue_manager.set_event_emitter(engine.emit_event)

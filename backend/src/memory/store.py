@@ -286,6 +286,76 @@ class MemoryStore:
                 row = await cursor.fetchone()
         return int(row[0]) if row else 0
 
+    # =========================================================== Block G 查询
+
+    async def get_in_time_range(
+        self,
+        agent_id: str,
+        game_time_min: float,
+        game_time_max: float,
+        memory_types: list[MemoryType] | None = None,
+        min_importance: int = 0,
+        exclude_compressed: bool = True,
+    ) -> list[Memory]:
+        """拉指定 game_time 区间(左闭右开)+ 类型 + 重要性下限的 memory。
+
+        Block G 反思器用此拉当日 memory(min=00:00, max=24:00),做高层 reflection。
+        """
+        where = ["agent_id = ?", "game_time >= ?", "game_time < ?", "importance >= ?"]
+        params: list[object] = [agent_id, game_time_min, game_time_max, min_importance]
+        if exclude_compressed:
+            where.append("compressed = 0")
+        if memory_types:
+            placeholders = ",".join("?" for _ in memory_types)
+            where.append(f"memory_type IN ({placeholders})")
+            params.extend(memory_types)
+        sql = (
+            "SELECT * FROM memories WHERE "
+            + " AND ".join(where)
+            + " ORDER BY game_time ASC"
+        )
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(sql, params) as cursor:
+                rows = await cursor.fetchall()
+        return [_row_to_memory(row) for row in rows]
+
+    async def get_older_than(
+        self,
+        agent_id: str,
+        game_time_max: float,
+        max_importance: int | None = None,
+        exclude_types: list[MemoryType] | None = None,
+        exclude_compressed: bool = True,
+    ) -> list[Memory]:
+        """拉指定 game_time 之前(< max)的 memory,用于压缩。
+
+        Block G 压缩:
+        - 拉 1-7 天前 importance < 5 → 合并日常摘要
+        - 拉 7 天以前非 reflection 且 importance < 7 → 标记 compressed
+        """
+        where = ["agent_id = ?", "game_time < ?"]
+        params: list[object] = [agent_id, game_time_max]
+        if exclude_compressed:
+            where.append("compressed = 0")
+        if max_importance is not None:
+            where.append("importance <= ?")
+            params.append(max_importance)
+        if exclude_types:
+            placeholders = ",".join("?" for _ in exclude_types)
+            where.append(f"memory_type NOT IN ({placeholders})")
+            params.extend(exclude_types)
+        sql = (
+            "SELECT * FROM memories WHERE "
+            + " AND ".join(where)
+            + " ORDER BY game_time ASC"
+        )
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(sql, params) as cursor:
+                rows = await cursor.fetchall()
+        return [_row_to_memory(row) for row in rows]
+
 
 # ============================================================================
 #                           Importance Scorer (LLM)

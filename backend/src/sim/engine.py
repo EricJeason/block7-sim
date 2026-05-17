@@ -22,6 +22,8 @@ from typing import Any
 from src.agent.planning import LocationLoader, PersonaLoader
 from src.agent.runtime import AgentRuntime
 from src.agent.scheduler import ActionScheduler, TickResult
+from src.memory.compression import MemoryCompressor
+from src.agent.reflection import ReflectionRunner
 from src.memory.store import MemoryStore
 
 logger = logging.getLogger(__name__)
@@ -58,6 +60,10 @@ class SimEngine:
         tick_interval_seconds: float = 1.0,
         agent_ids: list[str] | None = None,
         subscriber_queue_size: int = 200,
+        reflection_runner: ReflectionRunner | None = None,
+        compressor: MemoryCompressor | None = None,
+        enable_daily_reflection: bool = True,
+        seconds_per_game_day: float = 86400.0,
     ) -> None:
         """
         Args:
@@ -65,6 +71,9 @@ class SimEngine:
             tick_interval_seconds: 后台 tick 循环的真实秒间隔。默认 1.0。
             agent_ids: 要注册的 agent 列表;None → 自动加载 personas/ 下全部。
             subscriber_queue_size: 单个订阅者队列上限,满时丢事件防止慢消费者拖慢 sim。
+            reflection_runner: Block G ReflectionRunner;None → 不做跨日反思。
+            compressor: Block G MemoryCompressor;None → 不做跨日压缩。
+            enable_daily_reflection: True 且有 runner/compressor → 跨日自动触发。
         """
         self.scheduler = scheduler
         self.memory_store = memory_store
@@ -74,6 +83,10 @@ class SimEngine:
         self.tick_interval_seconds = tick_interval_seconds
         self.agent_ids = agent_ids or persona_loader.list_agent_ids()
         self.subscriber_queue_size = subscriber_queue_size
+        self.reflection_runner = reflection_runner
+        self.compressor = compressor
+        self.enable_daily_reflection = enable_daily_reflection
+        self.seconds_per_game_day = seconds_per_game_day
 
         self.game_time: float = 0.0
         self._tick_task: asyncio.Task[None] | None = None
@@ -81,6 +94,8 @@ class SimEngine:
         self._subscribers: set[asyncio.Queue[SimEvent]] = set()
         self._registered = False
         self._paused: bool = False
+        self._last_game_day: int = 0
+        self._reflection_tasks: set[asyncio.Task[None]] = set()
 
     # ---------------------------------------------------------------- start
 
@@ -128,7 +143,7 @@ class SimEngine:
     # ------------------------------------------------------------------ stop
 
     async def stop(self) -> None:
-        """优雅停机:取消 tick 循环 + drain scheduler pending tasks。"""
+        """优雅停机:取消 tick 循环 + drain scheduler/reflection pending tasks。"""
         if self._stop_event is not None:
             self._stop_event.set()
         if self._tick_task is not None:
@@ -142,6 +157,12 @@ class SimEngine:
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
                     pass
             self._tick_task = None
+        # 取消未完成的 reflection task(Pro think_high 单次 60s,shutdown 必须能强行结束)
+        for task in list(self._reflection_tasks):
+            if not task.done():
+                task.cancel()
+        if self._reflection_tasks:
+            await asyncio.wait(self._reflection_tasks, timeout=2.0)
         await self.scheduler.shutdown()
         logger.info("[sim] stopped at game_time=%g", self.game_time)
 
@@ -156,6 +177,12 @@ class SimEngine:
             dt_real = self.tick_interval_seconds
         game_dt = dt_real * self.time_scale
         self.game_time += game_dt
+        # Block G:跨游戏日 → 触发后台反思 + 压缩
+        new_game_day = int(self.game_time // self.seconds_per_game_day)
+        if new_game_day > self._last_game_day:
+            completed_day = self._last_game_day
+            self._last_game_day = new_game_day
+            self._schedule_daily_reflection(completed_day)
         results = await self.scheduler.tick_all(
             game_time=self.game_time, dt=game_dt
         )
@@ -187,6 +214,85 @@ class SimEngine:
                 await self.tick_once(dt_real=dt_real)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("[sim] tick error: %s", exc)
+
+    # -------------------------------------------- Block G: daily reflection
+
+    def _schedule_daily_reflection(self, completed_day: int) -> None:
+        """跨日时启动后台任务跑反思 + 压缩。永不阻塞 tick。"""
+        if not self.enable_daily_reflection:
+            return
+        if self.reflection_runner is None and self.compressor is None:
+            return
+        self._publish(
+            SimEvent(
+                type="daily_reflection_started",
+                agent_id=None,
+                game_time=self.game_time,
+                payload={
+                    "game_day": completed_day,
+                    "agent_count": len(self.agent_ids),
+                },
+            )
+        )
+        task = asyncio.create_task(self._run_daily_reflection(completed_day))
+        self._reflection_tasks.add(task)
+        task.add_done_callback(self._reflection_tasks.discard)
+
+    async def _run_daily_reflection(self, completed_day: int) -> None:
+        """并行跑所有 agent 的 reflection,然后并行跑 compression。"""
+        reflection_total = 0
+        cost_total = 0.0
+        if self.reflection_runner is not None:
+            tasks = [
+                self.reflection_runner.run_for_agent(
+                    agent_id=aid, game_day=completed_day, game_time=self.game_time,
+                )
+                for aid in self.agent_ids
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in results:
+                if isinstance(r, BaseException):
+                    logger.warning("[sim] reflection task error: %s", r)
+                    continue
+                reflection_total += len(r.reflections)
+                cost_total += r.cost_yuan
+
+        archived_total = 0
+        merged_total = 0
+        if self.compressor is not None:
+            tasks = [
+                self.compressor.compress_old_memories(
+                    agent_id=aid, current_game_time=self.game_time
+                )
+                for aid in self.agent_ids
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in results:
+                if isinstance(r, BaseException):
+                    logger.warning("[sim] compression task error: %s", r)
+                    continue
+                archived_total += r.archived_count
+                merged_total += r.merged_count
+                cost_total += r.cost_yuan
+
+        logger.info(
+            "[sim] daily reflection day=%d: %d reflections, merged=%d archived=%d, cost=%.3f元",
+            completed_day, reflection_total, merged_total, archived_total, cost_total,
+        )
+        self._publish(
+            SimEvent(
+                type="daily_reflection_completed",
+                agent_id=None,
+                game_time=self.game_time,
+                payload={
+                    "game_day": completed_day,
+                    "reflection_count": reflection_total,
+                    "merged_count": merged_total,
+                    "archived_count": archived_total,
+                    "cost_yuan": round(cost_total, 4),
+                },
+            )
+        )
 
     # ---------------------------------------------------------- pause / resume
 
