@@ -179,6 +179,50 @@ func _fetch_world() -> void:
 		http.queue_free()
 
 
+# ----------------------------------------------------- F4.1 player_greet
+
+func player_greet(target_id: String, player_line: String, on_done: Callable = Callable()) -> void:
+	"""F4.1 玩家发起对话(打招呼) → 后端 LLM 生成 NPC 回复 → WS 推 dialogue_line。
+
+	on_done 可选:func(ok: bool, session_id: String) → 给 main.gd 知道是否成功。
+	"""
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+			http.queue_free()
+			if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+				push_warning("[backend_client] /dialogue/player_greet failed: code=%d body=%s" % [
+					code, body.get_string_from_utf8().substr(0, 200)
+				])
+				if on_done.is_valid():
+					on_done.call(false, "")
+				return
+			var text: String = body.get_string_from_utf8()
+			var parsed: Variant = JSON.parse_string(text)
+			if typeof(parsed) != TYPE_DICTIONARY:
+				if on_done.is_valid():
+					on_done.call(false, "")
+				return
+			var sid: String = str(parsed.get("session_id", ""))
+			print("[backend_client] player_greet ok session=%s" % sid.substr(0, 8))
+			if on_done.is_valid():
+				on_done.call(true, sid)
+	)
+	var body_json: String = JSON.stringify({
+		"target_id": target_id,
+		"player_line": player_line,
+		"max_turns": 2,
+	})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err: int = http.request(
+		BACKEND_URL + "/dialogue/player_greet", headers, HTTPClient.METHOD_POST, body_json
+	)
+	if err != OK:
+		push_warning("[backend_client] POST /dialogue/player_greet err=%d" % err)
+		http.queue_free()
+
+
 # ----------------------------------------------------- F2 player binding
 
 func bind_player(agent_id: String) -> void:

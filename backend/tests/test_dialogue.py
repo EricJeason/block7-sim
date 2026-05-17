@@ -348,3 +348,72 @@ async def test_shutdown_cancels_pending(persona_loader, store, captured_events):
     # 全部 session 应被清理
     assert mgr.is_agent_busy_with_dialogue("agent_01") is False
     assert mgr.is_agent_busy_with_dialogue("agent_02") is False
+
+
+# ============================================================================
+#                       F4.1 try_start_player_session
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_player_session_prefills_player_line(persona_loader, store, captured_events):
+    """玩家发起对话:玩家 line 立即写入 session.lines + 立即 emit dialogue_line。"""
+    llm = MockLLM(responses=["嗯,你早。"])
+    mgr = _make_manager(llm, persona_loader, store, captured_events, max_turns=2)
+
+    player = _make_agent("agent_01")
+    target = _make_agent("agent_02")
+    session = mgr.try_start_player_session(player, target, "你好,阿杏。", 100.0)
+    assert session is not None
+    assert session.initiator_id == "agent_01"
+    assert session.target_id == "agent_02"
+    # 玩家 line 立即在 lines 里
+    assert len(session.lines) == 1
+    assert session.lines[0].speaker_id == "agent_01"
+    assert session.lines[0].text == "你好,阿杏。"
+    # 事件:dialogue_started + dialogue_line(玩家那一句)
+    started_count = sum(1 for et, _ in captured_events if et == "dialogue_started")
+    line_count = sum(1 for et, _ in captured_events if et == "dialogue_line")
+    assert started_count == 1
+    assert line_count == 1
+    # session 跑完 → NPC LLM 回复 + dialogue_ended
+    await _drain(mgr)
+    assert len(session.lines) == 2
+    assert session.lines[1].speaker_id == "agent_02"
+    assert session.lines[1].text == "嗯,你早。"
+
+
+@pytest.mark.asyncio
+async def test_player_session_rejects_empty_line(persona_loader, store, captured_events):
+    """空 / 空白 player_line 应返回 None。"""
+    llm = MockLLM()
+    mgr = _make_manager(llm, persona_loader, store, captured_events)
+    player = _make_agent("agent_01")
+    target = _make_agent("agent_02")
+    assert mgr.try_start_player_session(player, target, "", 0.0) is None
+    assert mgr.try_start_player_session(player, target, "   \n  ", 0.0) is None
+
+
+@pytest.mark.asyncio
+async def test_player_session_rejects_different_location(persona_loader, store, captured_events):
+    """玩家和 NPC 在不同场所应返回 None。"""
+    llm = MockLLM()
+    mgr = _make_manager(llm, persona_loader, store, captured_events)
+    player = _make_agent("agent_01", location="lao_song_plaza")
+    target = _make_agent("agent_02", location="warm_valley_farm")
+    assert mgr.try_start_player_session(player, target, "你好。", 0.0) is None
+
+
+@pytest.mark.asyncio
+async def test_player_session_rejects_when_busy(persona_loader, store, captured_events):
+    """玩家或 NPC 已在另一场对话中应返回 None。"""
+    llm = MockLLM(responses=["A 回应", "B 回应", "..."])
+    mgr = _make_manager(llm, persona_loader, store, captured_events, max_turns=4)
+    # 先让 agent_02 进入另一场对话
+    a = _make_agent("agent_02")
+    c = _make_agent("agent_03")
+    mgr.try_start_session(a, c, 0.0)
+    # 玩家(01)想找 agent_02 → 应失败
+    player = _make_agent("agent_01")
+    assert mgr.try_start_player_session(player, a, "你好。", 0.0) is None
+    await mgr.shutdown()

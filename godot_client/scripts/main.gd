@@ -117,6 +117,9 @@ func _ready() -> void:
 	_build_boundary_hint()
 	GameWorld.boundary_hint_changed.connect(_on_boundary_hint_changed)
 
+	# F4.1 玩家发起对话的 WS 回流(NPC 那一句由 LocationView 接,玩家那一句由这里接)
+	GameWorld.dialogue_line.connect(_on_dialogue_line_for_player)
+
 
 func _on_world_initialized(_world: Dictionary) -> void:
 	# 第一次或重连时灌入了 world,加载默认场所
@@ -628,40 +631,42 @@ func _on_bubble_option_chosen(action_id: String, npc_id: String) -> void:
 
 
 func _stub_greet(npc_id: String) -> void:
-	"""F2 stub:玩家头顶气泡说"你好,XX",NPC 头顶气泡回应。
-	v0.4 会接入真正 LLM DialogueSession,这里只是占位。"""
+	"""F4.1 玩家打招呼 — 调 backend /dialogue/player_greet:
+	- 玩家说什么:Godot 端固定 3 句备选(seed 由 game_time)
+	- NPC 回复:**真 LLM 生成**(DialogueManager.try_start_player_session)
+	- 双方气泡通过 WS dialogue_line 事件流推回前端显示
+	"""
 	if _current_view == null:
 		return
 	var npc_agent: Dictionary = GameWorld.get_agent(npc_id)
 	var npc_name: String = npc_agent.get("display_name", npc_id)
-	var player_agent: Dictionary = GameWorld.get_agent(GameWorld.player_agent_id)
-	var player_name: String = player_agent.get("display_name", "艾琳")
 
-	# 玩家说什么(F2 固定模板,F4 LLM)
-	var greet_lines: Array = ["你好,%s。" % npc_name, "嗨,%s。" % npc_name, "%s,在忙吗?" % npc_name]
-	var npc_lines: Array = [
-		"嗯,%s。你也来了。" % player_name,
-		"啊,%s。" % player_name,
-		"%s,有事吗?" % player_name,
-		"...你早。",
+	# 玩家说什么(F4.1 仍是 3 句固定备选,v0.4 全屏对话 modal 加自由输入)
+	var greet_lines: Array = [
+		"你好,%s。" % npc_name,
+		"嗨,%s。" % npc_name,
+		"%s,在忙吗?" % npc_name,
 	]
-	# 用 game_time 当伪随机种子,稳定但不同时刻不同
 	var seed_int: int = int(GameWorld.game_time) % 100
 	var player_line: String = greet_lines[seed_int % greet_lines.size()]
-	var npc_line: String = npc_lines[seed_int % npc_lines.size()]
 
-	# 玩家头顶气泡
-	var player_node: Node = _current_view.get_player_node() if _current_view.has_method("get_player_node") else null
+	# 后台调 LLM,WS 推回 dialogue_line 由 _on_player_dialogue_line / LocationView 渲染
+	BackendClient.player_greet(npc_id, player_line, func(ok: bool, _sid: String) -> void:
+		if not ok:
+			push_warning("[interact] player_greet failed for %s" % npc_id)
+	)
+
+
+func _on_dialogue_line_for_player(_session_id: String, speaker_id: String, text: String, _turn_idx: int) -> void:
+	"""F4.1: WS dialogue_line 事件 — 如果 speaker 是玩家,显示在 PlayerNode 头顶。
+	NPC 的对话气泡由 LocationView._on_dialogue_line → AgentNode.show_speech_line 处理。"""
+	if speaker_id != GameWorld.player_agent_id:
+		return
+	if _current_view == null or not _current_view.has_method("get_player_node"):
+		return
+	var player_node: Node = _current_view.get_player_node()
 	if player_node != null and player_node.has_method("show_speech"):
-		player_node.show_speech(player_line)
-
-	# NPC 头顶气泡(等 0.6 秒玩家说完再说,简易对话节奏)
-	await get_tree().create_timer(0.6).timeout
-	var npc_node: Node = _current_view.get_node_or_null("AgentsContainer/" + npc_id)
-	if npc_node != null and npc_node.has_method("show_speech_line"):
-		npc_node.show_speech_line(npc_line)
-
-	print("[interact stub] %s → %s | %s → %s" % [player_name, player_line, npc_name, npc_line])
+		player_node.show_speech(text)
 
 
 func _on_bubble_cancelled() -> void:

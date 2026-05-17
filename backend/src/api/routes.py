@@ -38,6 +38,12 @@ class BindPlayerRequest(BaseModel):
     )
 
 
+class PlayerGreetRequest(BaseModel):
+    target_id: str = Field(..., description="玩家要打招呼的 NPC agent_id")
+    player_line: str = Field(..., description="玩家说的话(F4.1 固定 / v0.4 LLM 候选或自由输入)")
+    max_turns: int = Field(default=2, ge=2, le=8, description="对话总轮数,默认 2(玩家 1+NPC 1)")
+
+
 def _get_engine(request: Request) -> SimEngine:
     engine = getattr(request.app.state, "sim_engine", None)
     if engine is None:
@@ -144,6 +150,50 @@ async def bind_player(req: BindPlayerRequest, request: Request) -> dict[str, Any
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
     return {"player_agent_id": engine.scheduler.get_player_agent_id()}
+
+
+@router.post("/dialogue/player_greet")
+async def player_greet(req: PlayerGreetRequest, request: Request) -> dict[str, Any]:
+    """F4.1 玩家发起对话(打招呼) — DialogueManager 触发 NPC LLM 回复。
+
+    流程:
+    1. 校验玩家已绑定(scheduler.get_player_agent_id != None)
+    2. 校验 target 存在 + 与玩家同场所
+    3. 调 DialogueManager.try_start_player_session(player, target, player_line)
+    4. 立即广播 dialogue_started + dialogue_line(玩家那一句)WS 事件
+    5. 后台 LLM 生成 NPC 回复,完成后 WS 推 dialogue_line(NPC 那一句)
+    6. 同步返回 session_id 给 Godot 用以追踪
+    """
+    engine = _get_engine(request)
+    player_id = engine.scheduler.get_player_agent_id()
+    if player_id is None:
+        raise HTTPException(status_code=400, detail="尚未绑定玩家(POST /sim/player/bind 先绑定)")
+    if engine.dialogue_manager is None:
+        raise HTTPException(status_code=503, detail="dialogue_manager 未初始化")
+    try:
+        player = engine.scheduler.get_agent(player_id)
+        target = engine.scheduler.get_agent(req.target_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+
+    session = engine.dialogue_manager.try_start_player_session(
+        player=player,
+        target=target,
+        player_line=req.player_line,
+        game_time=engine.game_time,
+        max_turns=req.max_turns,
+    )
+    if session is None:
+        # 失败原因:同 id / 不同场所 / 双方已在对话 / 空 line
+        raise HTTPException(
+            status_code=409,
+            detail="无法发起对话:同 id / 不同场所 / 一方已在对话中 / line 为空",
+        )
+    return {
+        "session_id": session.session_id,
+        "initiator_id": session.initiator_id,
+        "target_id": session.target_id,
+    }
 
 
 @router.post("/sim/pause")

@@ -218,10 +218,103 @@ class DialogueManager:
         task.add_done_callback(self._tasks.discard)
         return session
 
-    async def _run_session(self, session: DialogueSession) -> None:
-        """串行生成 max_turns 轮台词,完成后写 memory + emit dialogue_ended。"""
+    def try_start_player_session(
+        self,
+        player: AgentRuntime,
+        target: AgentRuntime,
+        player_line: str,
+        game_time: float,
+        max_turns: int = 2,
+    ) -> DialogueSession | None:
+        """F4.1 玩家发起对话 — 预填玩家说的话,LLM 生成 NPC 回复。
+
+        Args:
+            player: 玩家 agent runtime(initiator)
+            target: NPC agent runtime
+            player_line: 玩家说的话(由 Godot 端固定/选项/未来自由输入)
+            game_time: 当前游戏时间
+            max_turns: 总轮数(默认 2 = 玩家 1 句 + NPC 1 句简短互动;
+                       v0.4+ 全屏对话 modal 可改更大)
+
+        Returns:
+            DialogueSession 或 None(检查不通过)
+        """
+        if player.agent_id == target.agent_id:
+            return None
+        if not player.current_location:
+            return None
+        if player.current_location != target.current_location:
+            return None
+        if player_line.strip() == "":
+            return None
+        if (
+            player.agent_id in self._agent_session
+            or target.agent_id in self._agent_session
+        ):
+            return None
+
+        session = DialogueSession(
+            session_id=uuid4().hex,
+            initiator_id=player.agent_id,
+            target_id=target.agent_id,
+            location=player.current_location,
+            started_at_game_time=game_time,
+            max_turns=max_turns,
+        )
+        # 预填玩家 line(turn_idx=0)
+        session.lines.append(DialogueLine(
+            speaker_id=player.agent_id,
+            text=player_line.strip(),
+            game_time=game_time,
+            turn_idx=0,
+        ))
+        self._sessions[session.session_id] = session
+        self._agent_session[player.agent_id] = session.session_id
+        self._agent_session[target.agent_id] = session.session_id
+        self.total_sessions_started += 1
+        self.total_lines += 1  # 玩家 line 计入
+
+        logger.info(
+            "[dialogue] PLAYER session id=%s %s → %s: %s",
+            session.session_id[:8],
+            player.agent_id,
+            target.agent_id,
+            player_line[:40],
+        )
+        self._emit(
+            "dialogue_started",
+            {
+                "session_id": session.session_id,
+                "initiator_id": player.agent_id,
+                "target_id": target.agent_id,
+                "location": session.location,
+            },
+        )
+        # 立即广播玩家那一句(前端 AgentNode 不渲染玩家 line,但事件流完整)
+        self._emit(
+            "dialogue_line",
+            {
+                "session_id": session.session_id,
+                "speaker_id": player.agent_id,
+                "text": player_line.strip(),
+                "turn_idx": 0,
+            },
+        )
+        # 从 turn_idx=1 开始生成(NPC 回复)
+        task = asyncio.create_task(self._run_session(session, start_turn=1))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return session
+
+    async def _run_session(self, session: DialogueSession, start_turn: int = 0) -> None:
+        """串行生成 max_turns 轮台词,完成后写 memory + emit dialogue_ended。
+
+        Args:
+            session: 要跑的 session
+            start_turn: 从哪一轮开始(玩家发起场景:玩家预填 turn 0,从 turn 1 开始)
+        """
         try:
-            for turn_idx in range(session.max_turns):
+            for turn_idx in range(start_turn, session.max_turns):
                 if session.ended:
                     break
                 line = await self._generate_line(session, turn_idx)
