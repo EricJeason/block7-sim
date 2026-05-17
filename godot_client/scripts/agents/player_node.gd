@@ -17,10 +17,14 @@ var _speech_timer: SceneTreeTimer = null
 
 const MOVE_SPEED_PX_PER_SEC: float = 250.0
 
-const BOUND_X_MIN: float = 60.0
-const BOUND_X_MAX: float = 1220.0
-const BOUND_Y_MIN: float = 380.0
-const BOUND_Y_MAX: float = 680.0
+# F2 边界:玩家锚点是脚下,sprite 头部约 锚点-120,所以 BOUND_Y_MIN 要给 sprite 高度空间
+# 设计稿 React 用 (60,1220,380,680) 是假设场景上半是远景层禁入,
+# 但 Block-7 像素背景"近景+远景"难以严格分离,Eric 反馈"还没到边就传送"。
+# 改为更接近真实屏幕边缘的值,玩家视觉上 sprite 贴边时才触发切场所。
+const BOUND_X_MIN: float = 40.0
+const BOUND_X_MAX: float = 1240.0
+const BOUND_Y_MIN: float = 180.0  # 让 sprite 头部能擦过 WoodClock(在 y=0~48)
+const BOUND_Y_MAX: float = 700.0
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var shadow: ColorRect = $Shadow
