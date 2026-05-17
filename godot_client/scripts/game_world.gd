@@ -94,6 +94,12 @@ const _LOCAL_TIME_EMIT_INTERVAL := 0.2  # 5 Hz
 var total_reflections: int = 0
 var last_reflection_day: int = -1
 
+## 精修轮次 3:warmup 超时兜底 + 反思触发即视为预热完成
+## (避免 1-2 个 agent 卡 fallback idle 时 LoadingOverlay 永远隐藏不了)
+var _force_warmup_complete: bool = false
+var _real_time_since_running: float = 0.0
+const _WARMUP_TIMEOUT_REAL_SEC := 45.0
+
 var _connected: bool = false
 
 
@@ -185,6 +191,8 @@ func handle_sim_event(event: Dictionary) -> void:
 			var n := int(_float_or_zero(payload.get("agent_count")))
 			print("[REFLECTION] 🌒 day %d 反思开始 — %d agent 并行 thinking..." % [day, n])
 			daily_reflection_started.emit(day, n)
+			# 反思触发说明 sim 已跑过完整 1 天,绝对算 warmup 完成
+			_mark_warmup_force_complete("daily_reflection_day_%d" % day)
 		"daily_reflection_completed":
 			var day2 := int(_float_or_zero(payload.get("game_day")))
 			var refl_n := int(_float_or_zero(payload.get("reflection_count")))
@@ -298,15 +306,32 @@ func is_connected_to_backend() -> bool:
 
 
 func is_warmup_complete() -> bool:
-	"""所有已注册 agent 都至少接收过一次 action_started → 视为预热完成。"""
+	"""预热完成判断:
+	- 强制完成(反思触发 或 超时)→ true
+	- 否则:已注册的 agent 都至少接收过一次 PLANNER source 的 action_started
+	"""
+	if _force_warmup_complete:
+		return true
 	return agents.size() > 0 and _ready_agents.size() >= agents.size()
+
+
+func _mark_warmup_force_complete(reason: String) -> void:
+	if _force_warmup_complete:
+		return
+	_force_warmup_complete = true
+	print("[game_world] warmup force-completed: %s (ready %d/%d)" % [
+		reason, _ready_agents.size(), agents.size()
+	])
+	# 触发 UI 更新 — 即使 ready_count < total,LoadingOverlay 会因 is_warmup_complete() 返回 true 而隐藏
+	warmup_progress.emit(agents.size(), agents.size())
 
 
 # ----------------------------------------------------- local time tick
 
 func _process(delta: float) -> void:
 	"""本地高频累加 game_time,让 HUD 时钟在 backend tick 之间也能连续显示。
-	backend WS 1 Hz 校准 → game_time 不会 drift。"""
+	backend WS 1 Hz 校准 → game_time 不会 drift。
+	同时跟踪 running 真实秒数,超时强制视为预热完成。"""
 	if paused or not _connected:
 		return
 	game_time += delta * time_scale
@@ -314,6 +339,11 @@ func _process(delta: float) -> void:
 	if _time_emit_accum >= _LOCAL_TIME_EMIT_INTERVAL:
 		_time_emit_accum = 0.0
 		sim_ticked.emit(game_time)
+	# warmup 超时兜底
+	if not _force_warmup_complete and agents.size() > 0:
+		_real_time_since_running += delta
+		if _real_time_since_running >= _WARMUP_TIMEOUT_REAL_SEC:
+			_mark_warmup_force_complete("timeout_%ds" % int(_WARMUP_TIMEOUT_REAL_SEC))
 
 
 # ----------------------------------------------------- helpers
