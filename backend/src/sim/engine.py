@@ -64,6 +64,7 @@ class SimEngine:
         compressor: MemoryCompressor | None = None,
         enable_daily_reflection: bool = True,
         seconds_per_game_day: float = 86400.0,
+        dialogue_manager: Any | None = None,
     ) -> None:
         """
         Args:
@@ -87,6 +88,9 @@ class SimEngine:
         self.compressor = compressor
         self.enable_daily_reflection = enable_daily_reflection
         self.seconds_per_game_day = seconds_per_game_day
+        # 弱引用 DialogueManager 只是为了 /sim/health 统计;若用 weakref 会麻烦,
+        # 直接 keep ref(life cycle 与 SimEngine 一致,都活到 lifespan 结束)
+        self.dialogue_manager = dialogue_manager
 
         self.game_time: float = 0.0
         self._tick_task: asyncio.Task[None] | None = None
@@ -513,6 +517,22 @@ class SimEngine:
                 )
             else:
                 snap["llm"]["cache_hit_rate"] = 0.0
+        if self.dialogue_manager is not None:
+            snap["dialogue"] = {
+                "total_sessions_started": getattr(
+                    self.dialogue_manager, "total_sessions_started", 0
+                ),
+                "total_sessions_ended": getattr(
+                    self.dialogue_manager, "total_sessions_ended", 0
+                ),
+                "total_lines": getattr(self.dialogue_manager, "total_lines", 0),
+                "total_cost_yuan": round(
+                    getattr(self.dialogue_manager, "total_cost_yuan", 0.0), 4
+                ),
+                "active_sessions": len(
+                    getattr(self.dialogue_manager, "_sessions", {})
+                ),
+            }
         return snap
 
     def world_snapshot(self) -> dict[str, Any]:

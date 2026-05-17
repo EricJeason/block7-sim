@@ -147,6 +147,12 @@ class DialogueManager:
         # 后台任务跟踪(shutdown 时 drain)
         self._tasks: set[asyncio.Task[None]] = set()
 
+        # 累计统计(P3 /sim/health 用)
+        self.total_sessions_started: int = 0
+        self.total_sessions_ended: int = 0
+        self.total_lines: int = 0
+        self.total_cost_yuan: float = 0.0
+
     # ----------------------------------------------------- DialogueGuard
 
     def is_agent_busy_with_dialogue(self, agent_id: str) -> bool:
@@ -189,6 +195,7 @@ class DialogueManager:
         self._sessions[session.session_id] = session
         self._agent_session[initiator.agent_id] = session.session_id
         self._agent_session[target.agent_id] = session.session_id
+        self.total_sessions_started += 1
 
         logger.info(
             "[dialogue] session started id=%s %s ↔ %s @ %s",
@@ -247,6 +254,7 @@ class DialogueManager:
 
     async def _finalize_session(self, session: DialogueSession) -> None:
         session.ended = True
+        self.total_sessions_ended += 1
         # 释放双方
         for aid in (session.initiator_id, session.target_id):
             if self._agent_session.get(aid) == session.session_id:
@@ -331,6 +339,8 @@ class DialogueManager:
         text = self._clean_text(response.content)
         if not text:
             return None
+        self.total_lines += 1
+        self.total_cost_yuan += response.usage.cost_yuan
         return DialogueLine(
             speaker_id=speaker_id,
             text=text,

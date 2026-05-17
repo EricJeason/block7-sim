@@ -59,12 +59,47 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _validate_settings() -> None:
+    """启动前校验关键配置,提前给清晰的错误提示(而非第一次 LLM 调用才崩)。
+
+    设计原则:
+    - 缺 DEEPSEEK_API_KEY → 警告但允许启动(用户可能在调试 Godot 端,paused 模式不烧 token)
+    - persona 目录 / locations 文件缺失 → 严重错误,直接抛(没人格 sim 跑不起来)
+    """
+    key = settings.deepseek_api_key
+    if not key or key in ("your_api_key_here", "PLACEHOLDER"):
+        logger.warning(
+            "[main] ⚠️  DEEPSEEK_API_KEY 未配置或仍是占位符。"
+            "Godot 端可以连后端看初始状态,但任何 LLM 调用会失败。"
+            "请在项目根 .env 填真实 key 后重启。"
+        )
+    from src.agent.planning import DEFAULT_PERSONAS_DIR, DEFAULT_LOCATIONS_FILE
+    if not DEFAULT_PERSONAS_DIR.exists():
+        raise RuntimeError(
+            f"[main] persona 目录不存在: {DEFAULT_PERSONAS_DIR}\n"
+            "请检查 backend/data/personas/ 是否完整(应有 agent_01.yaml ~ agent_12.yaml)"
+        )
+    persona_count = len(list(DEFAULT_PERSONAS_DIR.glob("agent_*.yaml")))
+    if persona_count < 12:
+        logger.warning(
+            "[main] ⚠️  仅找到 %d 个 persona YAML,期望 12 个(agent_01..agent_12)",
+            persona_count,
+        )
+    if not DEFAULT_LOCATIONS_FILE.exists():
+        raise RuntimeError(
+            f"[main] locations.yaml 不存在: {DEFAULT_LOCATIONS_FILE}"
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.basicConfig(
         level=settings.log_level,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+
+    # 配置校验 — 早期发现 .env 缺失,不要在第一次 LLM 调用时才崩
+    _validate_settings()
 
     auto_tick = _env_bool("BLOCK7_AUTO_TICK", True)
     start_paused = _env_bool("BLOCK7_START_PAUSED", True)  # 默认暂停启动,零成本
@@ -157,6 +192,7 @@ async def lifespan(app: FastAPI):
         reflection_runner=reflection_runner,
         compressor=compressor,
         enable_daily_reflection=enable_daily_reflection,
+        dialogue_manager=dialogue_manager,  # /sim/health dialogue 统计
     )
     # 回填 emit_event:DialogueManager 现在可以推 dialogue_* 事件给 WS 订阅者
     dialogue_manager.set_event_emitter(engine.emit_event)
