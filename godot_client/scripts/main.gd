@@ -34,12 +34,15 @@ const LOCATION_SCENES := {
 @onready var btn_filter_reflection: Button = $HUD/MemoryPanel/FilterBar/BtnReflection
 @onready var btn_filter_observation: Button = $HUD/MemoryPanel/FilterBar/BtnObservation
 @onready var btn_filter_plan: Button = $HUD/MemoryPanel/FilterBar/BtnPlan
+@onready var cost_hint: Label = $HUD/PausePanel/CostHint
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
 # memory filter: "all" / "reflection" / "observation" / "plan"
 var _memory_filter: String = "all"
 var _memory_cache: Array = []  # 最近一次拉到的 raw memories,切 tab 时直接重渲
+var _health_poll_timer: float = 0.0
+const _HEALTH_POLL_INTERVAL := 5.0
 
 
 func _ready() -> void:
@@ -135,6 +138,34 @@ func _update_pause_button() -> void:
 	else:
 		pause_button.text = "⏸ 暂停(运行中)"
 		pause_button.modulate = Color(1.0, 0.9, 0.5, 1)
+
+
+# ----------------------------------------------------- cost polling
+
+func _process(delta: float) -> void:
+	"""每 _HEALTH_POLL_INTERVAL 秒拉 /sim/health 更新成本显示。"""
+	if not GameWorld.is_connected_to_backend():
+		return
+	_health_poll_timer += delta
+	if _health_poll_timer < _HEALTH_POLL_INTERVAL:
+		return
+	_health_poll_timer = 0.0
+	BackendClient.fetch_sim_health(_on_health_received)
+
+
+func _on_health_received(data: Dictionary) -> void:
+	if data.is_empty():
+		return
+	var llm: Dictionary = data.get("llm", {})
+	var total_cost: float = float(llm.get("total_cost_yuan", 0.0))
+	var uptime: float = float(data.get("uptime_seconds", 0.0))
+	var rate_per_min: float = 0.0
+	if uptime > 1.0:
+		rate_per_min = total_cost * 60.0 / uptime
+	var cache_hit: float = float(llm.get("cache_hit_rate", 0.0))
+	cost_hint.text = "¥%.3f\n%.2f/min\n命中 %d%%" % [
+		total_cost, rate_per_min, int(cache_hit * 100)
+	]
 
 
 # ----------------------------------------------------- loading overlay

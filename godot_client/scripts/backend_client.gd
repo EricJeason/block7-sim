@@ -93,6 +93,30 @@ func _fetch_world() -> void:
 		http.queue_free()
 
 
+## 拉 /sim/health 实时统计(uptime / cost / cache_hit_rate / reflection)。
+## callback 形如:func(data: Dictionary) -> void
+func fetch_sim_health(callback: Callable) -> void:
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+			http.queue_free()
+			if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+				callback.call({})
+				return
+			var text: String = body.get_string_from_utf8()
+			var parsed: Variant = JSON.parse_string(text)
+			if typeof(parsed) != TYPE_DICTIONARY:
+				callback.call({})
+				return
+			callback.call(parsed)
+	)
+	var err: int = http.request(BACKEND_URL + "/sim/health")
+	if err != OK:
+		http.queue_free()
+		callback.call({})
+
+
 ## 请求 sim pause / resume(成本控制)。
 ## paused=true → POST /sim/pause, false → /sim/resume。
 ## 状态变化最终通过 WS paused_changed 事件回到 GameWorld。

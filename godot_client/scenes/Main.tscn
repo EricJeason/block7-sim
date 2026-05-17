@@ -69,13 +69,13 @@ text = "▶ 开始(暂停中)"
 theme_override_font_sizes/font_size = 18
 
 [node name="CostHint" type="Label" parent="HUD/PausePanel"]
-offset_left = 206.0
+offset_left = 200.0
 offset_top = 8.0
 offset_right = 278.0
 offset_bottom = 72.0
-text = "成本\n¥/min"
+text = "成本:--"
 theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 vertical_alignment = 1
 
