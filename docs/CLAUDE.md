@@ -1,7 +1,7 @@
 # CLAUDE.md — Block-7 项目工作守则
 
 **项目代号**:Block-7 生成式智能体社会模拟器(暮谷镇)
-**当前阶段**:Day 1 backend + Godot 联调全部跑通(A→F + H);**下一步:Block G(反思+压缩) 或 Block I(对话状态机) 由 Eric 拍板**
+**当前阶段**:Day 1 MVP **全部完成**(A→I,含暮谷镇世界观);BC 成本控制开关已上;**下一步由 Eric 拍板**(候选:美术替换 Block J / 玩家介入 Block K / 通宵观察 Block L)
 **协作主理**:Eric(高三学生,非专职程序员)
 
 ---
@@ -41,13 +41,15 @@
 | D | AgentRuntime + Action Queue 调度器 | ✅ Codex 实现 |
 | E | 粗 + 细两层规划器 | ✅ |
 | F | Perception 同场所传播 | ✅ |
-| H | FastAPI + WebSocket + Godot 端联调 | ✅ 后端 51ee432 + Godot 端 387306f |
-| **G** | 每日反思 + memory 压缩 | ⏳ 待 Eric 拍板下一步 |
-| **I** | 对话状态机 | ⏳ Day 2 范围,但视觉冲击大 |
+| H | FastAPI + WebSocket + Godot 端联调 | ✅ 51ee432 + 387306f |
+| BC | 成本控制(暂停按钮 + scheduler 频率优化) | ✅ 082f6a8 |
+| I | 对话状态机(DialogueSession + SpeechBubble) | ✅ afd0349 + 5913bb7 + d42cb3e |
+| G | 每日反思 + memory 压缩(跨日触发) | ✅ f25e9fd |
 
-测试基线:**91 单测全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)。
+测试基线:**115 mock 测试全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)。
 
-**Day 1 MVP 实质完成**:sim 引擎 + Godot 端实时显示,12 agent 真实活动可观察。
+**Day 1 MVP 全部完成**:sim 引擎 + Godot 端实时显示 + 对话 + 反思 + 压缩。
+12 agent 真实活动 + 对话 + 跨日反思,论文级别的 emergent narrative。
 
 ---
 

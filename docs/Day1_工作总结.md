@@ -1,14 +1,20 @@
 # Day 1 工作总结
 
-> 期间:2026-05-02(Block A/B/C)+ 2026-05-10(世界观敲定 + D 合并 + E + F + H 后端)+ 2026-05-16(Block H Godot 端联调)
+> 期间:2026-05-02(Block A/B/C)+ 2026-05-10(世界观敲定 + D 合并 + E + F + H 后端)+ 2026-05-16/17(H Godot 端 + BC 成本控制 + Block I 对话 + Block G 反思压缩)
 > 协作:Eric(主理) × Claude Opus 4.7 × Codex (ChatGPT 5.5,负责 Block D)
-> 状态:**Day 1 端到端 MVP 完成 (A→F + H),Eric 已在 Godot 端实测看到 12 个 agent 真实活动**。剩 Block G(反思+压缩)可选。
+> 状态:**Day 1 MVP 全部完成 (A→I + BC),所有 v0.2 设计的核心 Block 落地;成本可控;真实 API 已实测涌现剧情**。
 
 ---
 
 ## 一句话总结
 
-按 v0.2 设计文档原本"两天紧急开发"的节奏,**Day 1 累计交付了 A→F + H(后端+Godot 端)+ 暮谷镇世界观 + 4 张场景背景 + 艾琳全套像素 sprite + 真实 API 验证 + 端到端联调**——超额完成原计划 Day 1+Day 2 上午的全部内容。端到端闭环:Planner 产 action → Scheduler 推进 → Action 完成 → Perception 写 observation → SimEngine 发 SimEvent → WS 推到 Godot → GameWorld 镜像 → LocationView 显示 + Inspector 看 memory。
+按 v0.2 原计划"两天紧急开发",**Day 1 实际累计交付了 A B C D E F G H I + BC 共
+10 个 commit 段,12 agent + 暮谷镇 + 4 场景背景 + 艾琳像素 sprite + 暂停按钮 +
+对话气泡 + 反思压缩 — 完成度超过原计划 Day 1+Day 2 上午的全部内容**。端到端闭环:
+Planner 产 action → Scheduler 推进 → Action 完成 → Perception 写 observation
+→ talk_to 触发 DialogueSession → 多轮 LLM 生成对白 → 双方 memory →
+SimEngine 跨日检测 → 反思 + 压缩 → SimEvent → WS 推 Godot → GameWorld 镜像
+→ LocationView 显示 SpeechBubble / Inspector / 时钟 / 暂停按钮 / LoadingOverlay。
 
 ---
 
@@ -43,6 +49,21 @@
 1. **backend `config.py` 路径解析**:`./backend/data/sim.db` 这种相对路径基于 cwd 解析,Eric 从 worktree/主仓库 / 不同 cd 启动都崩。改为基于"项目根"解析 → 任何 cwd 都对
 2. **Godot WebSocketPeer 状态机 bug**:我代码看到 STATE_CLOSED 就 `_reconnect_timer = 5s` 然后 `return` —— 但 Godot 4 WS 握手必须**每帧 poll() 才能推进**,这导致 5 秒后 connect_to_url 又陷入同样问题 → 永远连不上。修复:重连倒计时不阻塞 poll,重连决策只在 `_on_state_change` 真发生时触发
 3. **GDScript 严格类型 vs JSON null**:backend hello 事件中 `agent_id = None` → JSON `null` 赋给 `String` 直接崩。加 `_str_or_empty` / `_float_or_zero` 兜底
+
+### 第四阶段:2026-05-17(BC 成本控制 + I 对话 + G 反思)
+
+| 时间 | Commit | Block | 内容 |
+|---|---|---|---|
+| 00:35 | 082f6a8 | BC | **成本控制**:Eric 实测 ¥4.4/小时,远超预算。SimEngine pause/resume + POST /sim/pause-resume + BLOCK7_START_PAUSED 默认 true(零成本启动);scheduler `thinking_trigger_threshold` 30→120 + `max_planner_actions` 10→15;fine plan prompt 要求"5-10 个 ≥120s 动作"。预期 ¥1.76/日 → ¥0.4/日 |
+| 01:20 | afd0349 | I 初版 | **对话状态机**:DialogueManager + DialogueSession(~290 行)+ Pro talk_to 触发 + 多轮 LLM Flash + [END] 标记 + 双方 memory 写入 + scheduler 接 DialogueGuard 跳过 in-dialogue tick + Godot AgentNode SpeechBubble + 10 dialogue 单测 |
+| 01:50 | 5913bb7 | I bug fix | 实测 0 触发,定位两处根因:(1) observers 空时早 return 跳过 _maybe_trigger_dialogue;(2) LLM 输出 talk_to.agent_id="林秋" 中文名不是 ID。修法:_maybe_trigger_dialogue 提前 + 加 _resolve_agent_by_id_or_name 中文名反查 + planning prompt 强调用 agent_xx 格式。修复后实测出**千绫 ↔ 小璎 5 轮师徒对话** |
+| 02:15 | d42cb3e | I 精修 | UX 反馈:气泡显示时长改 `max(4, len*0.18)`(35字→6秒/80字→14秒)+ dialogue_ended 不立刻 hide 让最后一句自然消失 + dialogue prompt "≤ 35 个汉字 / 1 句话" + GameWorld warmup_progress signal + Main.tscn 全屏 LoadingOverlay 等所有 agent 首个 action 就绪 |
+| 02:45 | f25e9fd | **G** | **每日反思 + memory 压缩**:ReflectionRunner(Pro think_high,5-10 条 reflection)+ MemoryCompressor(1-7天 Flash 合并 + 7天前 archive)+ SimEngine 跨日检测 + 并行调度 + 2 个 SimEvent + MemoryStore.get_in_time_range / get_older_than + 13 个 Block G 单测。**Day 1 MVP 至此全部完成** |
+
+#### 第四阶段重要技术决策
+- **默认 paused 启动**:把"零成本运行"作为默认行为,Eric 想看时按 ▶ 才烧 token。避免开发时反复重启 backend 浪费成本(之前重启一次 12 agent ≈ 36 daily plan = ¥0.86 浪费)
+- **dialogue / reflection 都用后台 asyncio.create_task**:不阻塞 scheduler tick,且 SimEngine.stop() drain 防泄漏
+- **反思跨日并行触发**:12 agent × Pro think_high 并行 ≈ 60-90s 完成,期间 sim 正常 tick(in-dialogue / 反思中不冲突)
 
 ---
 
@@ -131,25 +152,27 @@ think_high 自发引用了 persona 多个层面 + catalyst 元素:
 - 关系加权 importance:观察者与 actor 有 initial_relationship → memory importance +1
 - 4 个场所 / 12 个角色全部从 YAML 加载,内存缓存
 
-### 还做不到(Block G/I 待补)
-- 反思(Block G):每日游戏日结束时回顾当日 memory 提炼高层 reflection
-- 旧 memory 压缩归档(Block G):防止跑长游戏 token 爆炸
-- 对话状态机(Block I,Day 2 范围):两个 agent 真的开口对话,LLM 多轮生成对白
-- "星露谷感"(Block J,独立 1.5-2 天工作):TileMap + Collision + 寻路 + AnimatedSprite + Camera2D follow + 可交互 Area2D —— 当前 Godot 端**只是一张贴图 + 12 个静态 sprite 固定 4×3 网格**,Eric 反馈"跟星露谷差到姥姥家了",这是真的,但**不是 Block H 的范围**
+### Day 1 全部 ✅,还做不到的留到 Day 2+
+
+- **"星露谷感"(Block J,独立 1.5-2 天工作)**:TileMap + Collision + 寻路 + AnimatedSprite + Camera2D follow + 可交互 Area2D —— 当前 Godot 端**只是一张贴图 + 12 个静态 sprite 固定 4×3 网格**,Eric 反馈"跟星露谷差到姥姥家了",这是真的,但**不是 sim 逻辑层范围**
+- **Block K(玩家介入)**:POST /agent/{id}/inject_event + Godot 端给玩家"扮演 agent 说话"入口
+- **Block L(通宵观察)**:开 sim 跑 1-2 游戏日(约 24-48 现实分钟,¥0.6-1.0)记录所有 dialogue + reflection,第二天分析有没有意外剧情
 
 ---
 
 ## 测试覆盖
 
 ```
-91 passed (含 3 真实 API 集成测试,首次跑 ~165s,后续轻量 ~3s)
+115 mock 测试 + 3 真实 API(后者非常规跑)
 - test_memory.py             :  7  Block C
 - test_perception.py         : 17  Block F
 - test_planning.py           : 20  Block E
 - test_scheduler.py          : 20  Block D (Codex)
-- test_api.py                : 11  Block H 后端(HTTP + WS)
+- test_api.py                : 15  Block H + BC(HTTP + WS + pause/resume)
 - test_sim_engine.py         :  9  Block H 后端(SimEngine 注册/tick/订阅)
 - test_smoke.py              :  5  Block A/B + 暮谷镇锁定
+- test_dialogue.py           : 10  Block I(DialogueSession state machine + LLM mock)
+- test_reflection.py         : 13  Block G(MemoryStore 新查询 + Reflection + Compression + SimEngine 跨日)
 - test_cache_hit_rate.py     :  1  真实 API,需 .env
 - test_memory_integration.py :  1  真实 API
 - test_planning_integration.py: 1  真实 API
