@@ -235,7 +235,7 @@ func _update_loading_overlay() -> void:
 	if not GameWorld.is_connected_to_backend():
 		loading_progress.text = "等待 backend 连接..."
 	elif GameWorld.paused:
-		loading_progress.text = "暂停中 — 点左下 ▶ 开始按钮启动预热"
+		loading_progress.text = "暂停中 — 按 Tab 启动预热"
 	else:
 		var ready: int = GameWorld._ready_agents.size()
 		var total: int = GameWorld.agents.size()

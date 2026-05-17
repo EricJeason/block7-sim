@@ -1,54 +1,45 @@
-[gd_scene load_steps=7 format=3 uid="uid://b7sim_main"]
+[gd_scene format=3 uid="uid://c61wqiehtkxll"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="PackedScene" uid="uid://b7sim_api_key_dialog" path="res://scenes/ApiKeyDialog.tscn" id="2_apikey"]
-[ext_resource type="PackedScene" uid="uid://b7sim_wood_clock" path="res://scenes/ui/WoodClock.tscn" id="3_wood_clock"]
-[ext_resource type="PackedScene" uid="uid://b7sim_location_label" path="res://scenes/ui/LocationLabel.tscn" id="4_location_label"]
-[ext_resource type="PackedScene" uid="uid://b7sim_key_hints" path="res://scenes/ui/KeyHints.tscn" id="5_key_hints"]
-[ext_resource type="PackedScene" uid="uid://b7sim_paused_chip" path="res://scenes/ui/PausedChip.tscn" id="6_paused_chip"]
+[ext_resource type="Script" uid="uid://bd2y4xdyyffe7" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/ApiKeyDialog.tscn" id="2_apikey"]
+[ext_resource type="PackedScene" path="res://scenes/ui/WoodClock.tscn" id="3_wood_clock"]
+[ext_resource type="PackedScene" path="res://scenes/ui/LocationLabel.tscn" id="4_location_label"]
+[ext_resource type="PackedScene" path="res://scenes/ui/KeyHints.tscn" id="5_key_hints"]
+[ext_resource type="PackedScene" path="res://scenes/ui/PausedChip.tscn" id="6_paused_chip"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=1864294991]
 script = ExtResource("1_main")
 
-[node name="LocationContainer" type="Node2D" parent="."]
+[node name="LocationContainer" type="Node2D" parent="." unique_id=1048666217]
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1090809964]
 
-; =================== F1: 新设计稿 HUD(羊皮纸 + 木板 + 极简) ===================
-
-; ---------------- 顶部中央:木板时钟(WoodClock 240×52,顶端 -4 嵌入) ----------------
-[node name="WoodClock" parent="HUD" instance=ExtResource("3_wood_clock")]
+[node name="WoodClock" parent="HUD" unique_id=495515971 instance=ExtResource("3_wood_clock")]
 offset_left = 520.0
 offset_top = -4.0
 offset_right = 760.0
 offset_bottom = 48.0
 
-; ---------------- 顶部居中下方:PAUSED chip(Tab 触发,默认隐藏) ----------------
-[node name="PausedChip" parent="HUD" instance=ExtResource("6_paused_chip")]
+[node name="PausedChip" parent="HUD" unique_id=391531383 instance=ExtResource("6_paused_chip")]
 offset_left = 580.0
 offset_top = 60.0
 offset_right = 700.0
 offset_bottom = 80.0
 
-; ---------------- 左下:场所标(LocationLabel,无背景浮于场景) ----------------
-[node name="LocationLabel" parent="HUD" instance=ExtResource("4_location_label")]
+[node name="LocationLabel" parent="HUD" unique_id=184265055 instance=ExtResource("4_location_label")]
 offset_left = 32.0
 offset_top = 622.0
 offset_right = 400.0
 offset_bottom = 692.0
 
-; ---------------- 右下:键位提示(KeyHints,无背景,右对齐) ----------------
-[node name="KeyHints" parent="HUD" instance=ExtResource("5_key_hints")]
+[node name="KeyHints" parent="HUD" unique_id=1900721992 instance=ExtResource("5_key_hints")]
 offset_left = 1020.0
 offset_top = 460.0
 offset_right = 1248.0
 offset_bottom = 692.0
 grow_horizontal = 0
 
-; =================== F1: 旧 HUD panel 全部 visible=false(F2 验证后清理) ===================
-
-; ---------------- 左上:时钟 + 连接状态(已被 WoodClock 取代) ----------------
-[node name="TimePanel" type="ColorRect" parent="HUD"]
+[node name="TimePanel" type="ColorRect" parent="HUD" unique_id=217148813]
 visible = false
 offset_left = 10.0
 offset_top = 10.0
@@ -56,26 +47,27 @@ offset_right = 290.0
 offset_bottom = 90.0
 color = Color(0.06, 0.08, 0.12, 0.72)
 
-[node name="TimeLabel" type="Label" parent="HUD/TimePanel"]
+[node name="TimeLabel" type="Label" parent="HUD/TimePanel" unique_id=1842088259]
+layout_mode = 0
 offset_left = 14.0
 offset_top = 6.0
 offset_right = 280.0
 offset_bottom = 42.0
-text = "Day 1, 00:00"
 theme_override_colors/font_color = Color(1, 0.95, 0.75, 1)
 theme_override_font_sizes/font_size = 22
+text = "Day 1, 00:00"
 
-[node name="ConnectionDot" type="Label" parent="HUD/TimePanel"]
+[node name="ConnectionDot" type="Label" parent="HUD/TimePanel" unique_id=1914362642]
+layout_mode = 0
 offset_left = 14.0
 offset_top = 44.0
 offset_right = 270.0
 offset_bottom = 76.0
-text = "● 未连接"
 theme_override_colors/font_color = Color(0.95, 0.4, 0.4, 1)
 theme_override_font_sizes/font_size = 16
+text = "● 未连接"
 
-; ---------------- TimePanel 下方:反思计数器(F4 阶段进 F modal) ----------------
-[node name="ReflectionPanel" type="ColorRect" parent="HUD"]
+[node name="ReflectionPanel" type="ColorRect" parent="HUD" unique_id=1288743120]
 visible = false
 offset_left = 10.0
 offset_top = 100.0
@@ -83,26 +75,27 @@ offset_right = 290.0
 offset_bottom = 170.0
 color = Color(0.06, 0.08, 0.12, 0.72)
 
-[node name="ReflectionLabel" type="Label" parent="HUD/ReflectionPanel"]
+[node name="ReflectionLabel" type="Label" parent="HUD/ReflectionPanel" unique_id=1100036627]
+layout_mode = 0
 offset_left = 14.0
 offset_top = 6.0
 offset_right = 278.0
 offset_bottom = 32.0
-text = "🌒 反思: 0 条 (尚未跨日)"
-theme_override_colors/font_color = Color(0.85, 0.78, 1.0, 1)
+theme_override_colors/font_color = Color(0.85, 0.78, 1, 1)
 theme_override_font_sizes/font_size = 14
+text = "🌒 反思: 0 条 (尚未跨日)"
 
-[node name="DialogueLabel" type="Label" parent="HUD/ReflectionPanel"]
+[node name="DialogueLabel" type="Label" parent="HUD/ReflectionPanel" unique_id=1208301034]
+layout_mode = 0
 offset_left = 14.0
 offset_top = 36.0
 offset_right = 278.0
 offset_bottom = 62.0
-text = "💬 对话: 0 场"
 theme_override_colors/font_color = Color(0.78, 0.93, 0.85, 1)
 theme_override_font_sizes/font_size = 14
+text = "💬 对话: 0 场"
 
-; ---------------- 左下:暂停/恢复按钮(已被 Tab + PausedChip 取代) ----------------
-[node name="PausePanel" type="ColorRect" parent="HUD"]
+[node name="PausePanel" type="ColorRect" parent="HUD" unique_id=303062379]
 visible = false
 offset_left = 10.0
 offset_top = 630.0
@@ -110,41 +103,41 @@ offset_right = 290.0
 offset_bottom = 710.0
 color = Color(0.06, 0.08, 0.12, 0.78)
 
-[node name="PauseButton" type="Button" parent="HUD/PausePanel"]
+[node name="PauseButton" type="Button" parent="HUD/PausePanel" unique_id=413000460]
+layout_mode = 0
 offset_left = 12.0
 offset_top = 12.0
 offset_right = 198.0
 offset_bottom = 68.0
-text = "▶ 开始(暂停中)"
 theme_override_font_sizes/font_size = 18
+text = "▶ 开始(暂停中)"
 
-[node name="CostHint" type="Label" parent="HUD/PausePanel"]
+[node name="CostHint" type="Label" parent="HUD/PausePanel" unique_id=577392229]
+layout_mode = 0
 offset_left = 200.0
 offset_top = 8.0
 offset_right = 278.0
 offset_bottom = 72.0
-text = "成本:--"
 theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
 theme_override_font_sizes/font_size = 10
+text = "成本:--"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-; ---------------- 顶部:导航提示(已被 LocationLabel + KeyHints 取代) ----------------
-[node name="NavLabel" type="Label" parent="HUD"]
+[node name="NavLabel" type="Label" parent="HUD" unique_id=1750186611]
 visible = false
 offset_left = 310.0
 offset_top = 18.0
 offset_right = 960.0
 offset_bottom = 58.0
-text = "等待 /world 初始化..."
-horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.95, 0.92, 0.78, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 16
+text = "等待 /world 初始化..."
+horizontal_alignment = 1
 
-; ---------------- 右侧上:Inspector(F2 阶段进 Q modal) ----------------
-[node name="Inspector" type="ColorRect" parent="HUD"]
+[node name="Inspector" type="ColorRect" parent="HUD" unique_id=1193799370]
 visible = false
 offset_left = 970.0
 offset_top = 10.0
@@ -152,27 +145,29 @@ offset_right = 1270.0
 offset_bottom = 370.0
 color = Color(0.06, 0.08, 0.12, 0.78)
 
-[node name="Title" type="Label" parent="HUD/Inspector"]
+[node name="Title" type="Label" parent="HUD/Inspector" unique_id=1777843727]
+layout_mode = 0
 offset_left = 12.0
 offset_top = 8.0
 offset_right = 288.0
 offset_bottom = 38.0
-text = "等待..."
 theme_override_colors/font_color = Color(1, 0.95, 0.75, 1)
 theme_override_font_sizes/font_size = 16
+text = "等待..."
 
-[node name="Scroll" type="ScrollContainer" parent="HUD/Inspector"]
+[node name="Scroll" type="ScrollContainer" parent="HUD/Inspector" unique_id=1737574942]
+layout_mode = 0
 offset_left = 6.0
 offset_top = 42.0
 offset_right = 294.0
 offset_bottom = 356.0
 horizontal_scroll_mode = 0
 
-[node name="AgentList" type="VBoxContainer" parent="HUD/Inspector/Scroll"]
+[node name="AgentList" type="VBoxContainer" parent="HUD/Inspector/Scroll" unique_id=563228886]
 custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
 
-; ---------------- 右侧下:MemoryPanel(F4 阶段进 P 图鉴 / F 内心 modal) ----------------
-[node name="MemoryPanel" type="ColorRect" parent="HUD"]
+[node name="MemoryPanel" type="ColorRect" parent="HUD" unique_id=1059706233]
 visible = false
 offset_left = 970.0
 offset_top = 380.0
@@ -180,99 +175,107 @@ offset_right = 1270.0
 offset_bottom = 710.0
 color = Color(0.06, 0.08, 0.12, 0.85)
 
-[node name="Title" type="Label" parent="HUD/MemoryPanel"]
+[node name="Title" type="Label" parent="HUD/MemoryPanel" unique_id=439351665]
+layout_mode = 0
 offset_left = 12.0
 offset_top = 8.0
 offset_right = 288.0
 offset_bottom = 38.0
-text = ""
 theme_override_colors/font_color = Color(0.95, 0.85, 0.55, 1)
 theme_override_font_sizes/font_size = 14
 
-[node name="FilterBar" type="HBoxContainer" parent="HUD/MemoryPanel"]
+[node name="FilterBar" type="HBoxContainer" parent="HUD/MemoryPanel" unique_id=1408549599]
+layout_mode = 0
 offset_left = 8.0
 offset_top = 38.0
 offset_right = 292.0
 offset_bottom = 68.0
 theme_override_constants/separation = 4
 
-[node name="BtnAll" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+[node name="BtnAll" type="Button" parent="HUD/MemoryPanel/FilterBar" unique_id=322152958]
 custom_minimum_size = Vector2(58, 26)
-text = "全部"
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
 button_pressed = true
-theme_override_font_sizes/font_size = 12
+text = "全部"
 
-[node name="BtnReflection" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+[node name="BtnReflection" type="Button" parent="HUD/MemoryPanel/FilterBar" unique_id=1986806718]
 custom_minimum_size = Vector2(64, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
 text = "🌒反思"
-toggle_mode = true
-theme_override_font_sizes/font_size = 12
 
-[node name="BtnObservation" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+[node name="BtnObservation" type="Button" parent="HUD/MemoryPanel/FilterBar" unique_id=1806496151]
 custom_minimum_size = Vector2(64, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
 text = "👁观察"
-toggle_mode = true
-theme_override_font_sizes/font_size = 12
 
-[node name="BtnPlan" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+[node name="BtnPlan" type="Button" parent="HUD/MemoryPanel/FilterBar" unique_id=1353592233]
 custom_minimum_size = Vector2(64, 26)
-text = "📋计划"
-toggle_mode = true
+layout_mode = 2
 theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "📋计划"
 
-[node name="Content" type="RichTextLabel" parent="HUD/MemoryPanel"]
+[node name="Content" type="RichTextLabel" parent="HUD/MemoryPanel" unique_id=1423375564]
+layout_mode = 0
 offset_left = 12.0
 offset_top = 72.0
 offset_right = 288.0
 offset_bottom = 322.0
-bbcode_enabled = true
-fit_content = false
-scroll_active = true
 theme_override_colors/default_color = Color(0.92, 0.92, 0.92, 1)
 theme_override_font_sizes/normal_font_size = 12
+bbcode_enabled = true
 
-; ---------------- LoadingOverlay(改 modal scrim 暗咖,F4 阶段加 parchment 中央 card) ----------------
-[node name="LoadingOverlay" type="ColorRect" parent="HUD"]
+[node name="LoadingOverlay" type="ColorRect" parent="HUD" unique_id=798722358]
 offset_right = 1280.0
 offset_bottom = 720.0
 color = Color(0.102, 0.078, 0.063, 0.85)
 
-[node name="Title" type="Label" parent="HUD/LoadingOverlay"]
-offset_left = 0.0
+[node name="Title" type="Label" parent="HUD/LoadingOverlay" unique_id=750230590]
+layout_mode = 0
 offset_top = 280.0
 offset_right = 1280.0
 offset_bottom = 340.0
+theme_override_colors/font_color = Color(0.925, 0.863, 0.757, 1)
+theme_override_font_sizes/font_size = 36
 text = "⏳ 暮谷镇 · 加载中"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_colors/font_color = Color(0.925, 0.863, 0.757, 1)
-theme_override_font_sizes/font_size = 36
 
-[node name="Progress" type="Label" parent="HUD/LoadingOverlay"]
-offset_left = 0.0
+[node name="Progress" type="Label" parent="HUD/LoadingOverlay" unique_id=1559865738]
+layout_mode = 0
 offset_top = 350.0
 offset_right = 1280.0
 offset_bottom = 390.0
+theme_override_colors/font_color = Color(0.78, 0.71, 0.58, 1)
+theme_override_font_sizes/font_size = 20
 text = "等待 backend 连接..."
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_colors/font_color = Color(0.78, 0.71, 0.58, 1)
-theme_override_font_sizes/font_size = 20
 
-[node name="Hint" type="Label" parent="HUD/LoadingOverlay"]
-offset_left = 0.0
+[node name="Hint" type="Label" parent="HUD/LoadingOverlay" unique_id=668677008]
+layout_mode = 0
 offset_top = 400.0
 offset_right = 1280.0
 offset_bottom = 440.0
+theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 1)
+theme_override_font_sizes/font_size = 14
 text = "首轮 LLM 思考约 30-90 秒,所有 agent 准备好后自动进入。"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 1)
-theme_override_font_sizes/font_size = 14
 
-; ----------- API key 弹窗(独立 CanvasLayer,layer=10 压在所有 HUD 之上)
-[node name="DialogLayer" type="CanvasLayer" parent="."]
+[node name="DialogLayer" type="CanvasLayer" parent="." unique_id=897186399]
 layer = 10
 
-[node name="ApiKeyDialog" parent="DialogLayer" instance=ExtResource("2_apikey")]
+[node name="ApiKeyDialog" parent="DialogLayer" unique_id=634243866 instance=ExtResource("2_apikey")]
+offset_left = -14.0
+offset_top = 30.0
+offset_right = -14.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
