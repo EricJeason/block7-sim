@@ -384,6 +384,7 @@ class SimEngine:
                     payload={
                         "action_type": result.completed_action.action_type,
                         "args": dict(result.completed_action.args),
+                        "source": result.completed_action.source.value,
                     },
                 )
             )
@@ -399,6 +400,10 @@ class SimEngine:
                         "args": dict(result.started_action.args),
                         "duration_seconds": result.started_action.duration_seconds,
                         "current_location": agent.current_location,
+                        # Block I 精修 #2:source 让 Godot 区分 fallback / planner /
+                        # emergency / manual,LoadingOverlay 只在真 planner action
+                        # 到达后才算 warmup 完成,不被 fallback idle 误触发
+                        "source": result.started_action.source.value,
                     },
                 )
             )

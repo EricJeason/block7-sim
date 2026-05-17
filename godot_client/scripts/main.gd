@@ -29,6 +29,7 @@ const LOCATION_SCENES := {
 @onready var pause_button: Button = $HUD/PausePanel/PauseButton
 @onready var loading_overlay: ColorRect = $HUD/LoadingOverlay
 @onready var loading_progress: Label = $HUD/LoadingOverlay/Progress
+@onready var reflection_label: Label = $HUD/ReflectionPanel/ReflectionLabel
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -48,6 +49,8 @@ func _ready() -> void:
 	GameWorld.agent_thinking_started.connect(_on_agent_thinking_changed)
 	GameWorld.agent_thinking_completed.connect(_on_agent_thinking_changed2)
 	GameWorld.warmup_progress.connect(_on_warmup_progress)
+	GameWorld.daily_reflection_started.connect(_on_daily_reflection_started)
+	GameWorld.daily_reflection_completed.connect(_on_daily_reflection_completed)
 	pause_button.pressed.connect(_on_pause_button_pressed)
 
 	_update_nav_label()
@@ -129,6 +132,22 @@ func _on_warmup_progress(ready_count: int, total: int) -> void:
 	loading_progress.text = "等待 agent 完成首轮思考...  %d / %d" % [ready_count, total]
 	if GameWorld.is_warmup_complete():
 		loading_overlay.visible = false
+
+
+# ----------------------------------------------------- reflection
+
+func _on_daily_reflection_started(game_day: int, agent_count: int) -> void:
+	reflection_label.text = "🌒 Day %d 反思中... (%d agent)" % [game_day, agent_count]
+	reflection_label.modulate = Color(1.0, 0.9, 0.6, 1.0)
+
+
+func _on_daily_reflection_completed(
+	game_day: int, reflection_count: int, _merged: int, _archived: int, cost_yuan: float
+) -> void:
+	reflection_label.text = "⭐ 反思: %d 条 / 最近 Day %d (¥%.3f)" % [
+		GameWorld.total_reflections, game_day, cost_yuan
+	]
+	reflection_label.modulate = Color(0.85, 0.78, 1.0, 1.0)
 
 
 func _update_loading_overlay() -> void:

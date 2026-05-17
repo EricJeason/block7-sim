@@ -57,6 +57,10 @@ signal dialogue_ended(session_id: String, initiator_id: String, target_id: Strin
 ## ready_count 达到 total 时视为 sim 完全预热,UI 隐藏 LoadingOverlay。
 signal warmup_progress(ready_count: int, total: int)
 
+## Block G:每日反思事件。Godot 端用此显示反思计数 + 高亮 console。
+signal daily_reflection_started(game_day: int, agent_count: int)
+signal daily_reflection_completed(game_day: int, reflection_count: int, merged_count: int, archived_count: int, cost_yuan: float)
+
 # ----------------------------------------------------------------- state
 
 ## locations[location_id] = { id, name, type, description, open_hours, adjacent_to[] }
@@ -80,6 +84,15 @@ var paused: bool = true  # 默认暂停假设(BLOCK7_START_PAUSED=1)
 
 ## 已收到首个 action_started 的 agent 集合(用 dict 当 set)。
 var _ready_agents: Dictionary = {}
+
+## Block I 精修 #3:本地高频累加 game_time,让时钟连续 — backend WS 推送
+## 1 Hz 校准。emit 节流到 5 Hz 避免 UI 刷新过频。
+var _time_emit_accum: float = 0.0
+const _LOCAL_TIME_EMIT_INTERVAL := 0.2  # 5 Hz
+
+## Block G 可视化:累计反思条数(跨 sim 重启不持久)。
+var total_reflections: int = 0
+var last_reflection_day: int = -1
 
 var _connected: bool = false
 
@@ -167,6 +180,23 @@ func handle_sim_event(event: Dictionary) -> void:
 				int(_float_or_zero(payload.get("total_turns"))),
 				_str_or_empty(payload.get("reason")),
 			)
+		"daily_reflection_started":
+			var day := int(_float_or_zero(payload.get("game_day")))
+			var n := int(_float_or_zero(payload.get("agent_count")))
+			print("[REFLECTION] 🌒 day %d 反思开始 — %d agent 并行 thinking..." % [day, n])
+			daily_reflection_started.emit(day, n)
+		"daily_reflection_completed":
+			var day2 := int(_float_or_zero(payload.get("game_day")))
+			var refl_n := int(_float_or_zero(payload.get("reflection_count")))
+			var merged := int(_float_or_zero(payload.get("merged_count")))
+			var archived := int(_float_or_zero(payload.get("archived_count")))
+			var cost := _float_or_zero(payload.get("cost_yuan"))
+			print("[REFLECTION] ⭐ day %d 完成 — %d reflection, 合并 %d, 归档 %d, 成本 ¥%.4f" % [
+				day2, refl_n, merged, archived, cost
+			])
+			total_reflections += refl_n
+			last_reflection_day = day2
+			daily_reflection_completed.emit(day2, refl_n, merged, archived, cost)
 		"tick_error":
 			push_warning("[game_world] tick_error agent=%s err=%s" % [agent_id, payload.get("error", "?")])
 		"pong":
@@ -195,8 +225,12 @@ func _apply_action_started(agent_id: String, payload: Dictionary) -> void:
 	agents[agent_id]["current_action"] = action
 	agent_started_action.emit(agent_id, action)
 
-	# Block I 精修:首次 action 视为 agent 预热完成
-	if not _ready_agents.has(agent_id):
+	# Block I 精修:首次"真 action"(非 fallback)视为 agent 预热完成。
+	# fallback idle 是 scheduler 在 thinking 还没回来时占位的,不算就绪 —
+	# 否则启动后 1 秒所有 12 agent 都被标 ready,LoadingOverlay 立刻消失。
+	var source: String = _str_or_empty(payload.get("source"))
+	var is_fallback: bool = source == "fallback"
+	if not is_fallback and not _ready_agents.has(agent_id):
 		_ready_agents[agent_id] = true
 		warmup_progress.emit(_ready_agents.size(), agents.size())
 
@@ -266,6 +300,20 @@ func is_connected_to_backend() -> bool:
 func is_warmup_complete() -> bool:
 	"""所有已注册 agent 都至少接收过一次 action_started → 视为预热完成。"""
 	return agents.size() > 0 and _ready_agents.size() >= agents.size()
+
+
+# ----------------------------------------------------- local time tick
+
+func _process(delta: float) -> void:
+	"""本地高频累加 game_time,让 HUD 时钟在 backend tick 之间也能连续显示。
+	backend WS 1 Hz 校准 → game_time 不会 drift。"""
+	if paused or not _connected:
+		return
+	game_time += delta * time_scale
+	_time_emit_accum += delta
+	if _time_emit_accum >= _LOCAL_TIME_EMIT_INTERVAL:
+		_time_emit_accum = 0.0
+		sim_ticked.emit(game_time)
 
 
 # ----------------------------------------------------- helpers

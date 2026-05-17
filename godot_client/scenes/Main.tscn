@@ -35,6 +35,23 @@ text = "● 未连接"
 theme_override_colors/font_color = Color(0.95, 0.4, 0.4, 1)
 theme_override_font_sizes/font_size = 16
 
+; ---------------- TimePanel 下方:Block G 反思计数器 ----------------
+[node name="ReflectionPanel" type="ColorRect" parent="HUD"]
+offset_left = 10.0
+offset_top = 100.0
+offset_right = 290.0
+offset_bottom = 145.0
+color = Color(0.06, 0.08, 0.12, 0.72)
+
+[node name="ReflectionLabel" type="Label" parent="HUD/ReflectionPanel"]
+offset_left = 14.0
+offset_top = 6.0
+offset_right = 278.0
+offset_bottom = 38.0
+text = "🌒 反思: 0 条 (尚未跨日)"
+theme_override_colors/font_color = Color(0.85, 0.78, 1.0, 1)
+theme_override_font_sizes/font_size = 14
+
 ; ---------------- 左下:Sim 暂停/恢复按钮(成本控制) ----------------
 [node name="PausePanel" type="ColorRect" parent="HUD"]
 offset_left = 10.0
