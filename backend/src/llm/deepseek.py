@@ -94,6 +94,7 @@ class DeepSeekClient:
         # P3 打磨:累计成本统计,GET /sim/health 暴露给前端
         self.total_cost_yuan: float = 0.0
         self.total_calls: int = 0
+        self.total_errors: int = 0  # 重试耗尽后抛的次数
         self.total_input_tokens: int = 0
         self.total_output_tokens: int = 0
         self.total_cache_hit_tokens: int = 0
@@ -142,6 +143,20 @@ class DeepSeekClient:
         max_tokens: int = 1000,
     ) -> LLMResponse:
         """发起一次 chat completion 调用。失败按指数退避重试,总超时 30s。"""
+        try:
+            return await self._chat_with_retry(messages, model, mode, temperature, max_tokens)
+        except Exception:
+            self.total_errors += 1
+            raise
+
+    async def _chat_with_retry(
+        self,
+        messages: list[dict[str, str]],
+        model: str,
+        mode: ThinkMode,
+        temperature: float,
+        max_tokens: int,
+    ) -> LLMResponse:
         url = f"{self.base_url}/v1/chat/completions"
         body = self._build_request_body(messages, model, mode, temperature, max_tokens)
 

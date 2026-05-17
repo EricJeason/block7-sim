@@ -502,8 +502,11 @@ class SimEngine:
             },
         }
         if llm_client is not None and hasattr(llm_client, "total_cost_yuan"):
+            calls = getattr(llm_client, "total_calls", 0)
+            errors = getattr(llm_client, "total_errors", 0)
             snap["llm"] = {
-                "total_calls": getattr(llm_client, "total_calls", 0),
+                "total_calls": calls,
+                "total_errors": errors,
                 "total_cost_yuan": round(getattr(llm_client, "total_cost_yuan", 0.0), 4),
                 "total_input_tokens": getattr(llm_client, "total_input_tokens", 0),
                 "total_output_tokens": getattr(llm_client, "total_output_tokens", 0),
@@ -517,6 +520,9 @@ class SimEngine:
                 )
             else:
                 snap["llm"]["cache_hit_rate"] = 0.0
+            # 错误率(error / (calls + errors),分母含失败)
+            denom = calls + errors
+            snap["llm"]["error_rate"] = round(errors / denom, 3) if denom > 0 else 0.0
         if self.dialogue_manager is not None:
             snap["dialogue"] = {
                 "total_sessions_started": getattr(
