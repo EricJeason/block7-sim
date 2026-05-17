@@ -36,9 +36,9 @@ var _move_blocked: bool = false  # F3 BubbleMenu 弹出时由外部置 true,锁�
 ## F2 边界切场所:玩家撞边界 + 推该方向键 N 秒后触发切场所
 var _boundary_press_time: float = 0.0
 const _BOUNDARY_TRIGGER_SEC: float = 1.0
-# 边界提示浮气泡(动态创建)
-var _boundary_hint_panel: PanelContainer = null
-var _boundary_hint_label: Label = null
+# 边界提示已改成 HUD 元素(由 main.gd 监听 GameWorld.boundary_hint_changed 渲染),
+# 避免玩家走到屏幕顶时气泡被顶出去
+var _boundary_hint_visible: bool = false
 
 
 func _ready() -> void:
@@ -59,8 +59,6 @@ func _ready() -> void:
 	# 玩家点击不响应(玩家自己不能对自己用 E)
 	mouse_filter_recursive(self)
 
-	# F2 边界提示浮气泡(羊皮纸 + 旧橡木墨边)
-	_build_boundary_hint()
 	# F2 打招呼气泡(玩家说"你好,XX"用)
 	_build_speech_bubble()
 
@@ -157,35 +155,22 @@ func _check_boundary_transition(dx: float, dy: float, delta: float) -> void:
 	_boundary_press_time = 0.0
 
 
-func _build_boundary_hint() -> void:
-	"""边界推方向键时浮现的提示气泡 — 显示目标场所 + 倒计时。"""
-	_boundary_hint_panel = PanelContainer.new()
-	_boundary_hint_panel.add_theme_stylebox_override("panel", ChromeTheme.make_parchment_floating(0.92))
-	_boundary_hint_panel.visible = false
-	_boundary_hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_boundary_hint_panel.position = Vector2(-130, -220)  # 头顶上方,比 YOU 更高
-	_boundary_hint_panel.size = Vector2(260, 0)
-
-	_boundary_hint_label = Label.new()
-	_boundary_hint_label.add_theme_font_override("font", ChromeTheme.font_serif(600))
-	_boundary_hint_label.add_theme_font_size_override("font_size", 14)
-	_boundary_hint_label.add_theme_color_override("font_color", ChromeTheme.COLOR_DEEP_INK)
-	_boundary_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_boundary_hint_panel.add_child(_boundary_hint_label)
-
-	add_child(_boundary_hint_panel)
-
-
 func _show_boundary_hint(text: String, _progress: float = 0.0) -> void:
-	if _boundary_hint_panel == null:
+	"""通过 GameWorld signal 通知 main.gd HUD 显示边界提示。
+	避免气泡跟随玩家被顶出屏幕。"""
+	if _boundary_hint_visible:
+		# 已显示,只 update 文本(GameWorld.signal 每帧 emit,main.gd 不重建节点)
+		GameWorld.boundary_hint_changed.emit(true, text)
 		return
-	_boundary_hint_label.text = text
-	_boundary_hint_panel.visible = true
+	_boundary_hint_visible = true
+	GameWorld.boundary_hint_changed.emit(true, text)
 
 
 func _hide_boundary_hint() -> void:
-	if _boundary_hint_panel != null:
-		_boundary_hint_panel.visible = false
+	if not _boundary_hint_visible:
+		return
+	_boundary_hint_visible = false
+	GameWorld.boundary_hint_changed.emit(false, "")
 
 
 # ----------------------------------------------------- 玩家说话气泡

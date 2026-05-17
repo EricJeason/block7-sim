@@ -67,6 +67,10 @@ signal agent_clicked(agent_id: String)
 ## F2 玩家绑定变化(BackendClient.bind_player 成功后触发)
 signal player_bound(agent_id: String)
 
+## F2 边界提示变化(PlayerNode emit,main.gd HUD 监听)
+## should_show=true 时 text 是提示内容("→ 北霜工坊  · 继续推 0.7s"或"× 此方向暂无出口")
+signal boundary_hint_changed(should_show: bool, text: String)
+
 ## API key 未配置 → 触发首页弹窗(BackendClient 启动时调 /sim/api_key/status)
 signal api_key_required
 ## API key 配置完成 → 弹窗隐藏 + BackendClient 恢复 fetch_world / 开 WS

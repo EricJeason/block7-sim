@@ -55,6 +55,10 @@ const BubbleMenuScene := preload("res://scenes/ui/BubbleMenu.tscn")
 # F2 BubbleMenu 单实例(挂在 HUD 上,弹出时锁玩家移动)
 var _bubble_menu: Control = null
 
+# F2 边界提示(玩家撞边界 + 推方向时浮现,固定在 WoodClock 下方)
+var _boundary_hint: PanelContainer = null
+var _boundary_hint_label: Label = null
+
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
 # memory filter: "all" / "reflection" / "observation" / "plan"
@@ -99,6 +103,10 @@ func _ready() -> void:
 	_update_location_label()
 	key_hints.hints = KeyHints.default_hints_v02()
 	paused_chip.visible = false
+
+	# F2 边界提示(挂 HUD,默认隐藏)
+	_build_boundary_hint()
+	GameWorld.boundary_hint_changed.connect(_on_boundary_hint_changed)
 
 
 func _on_world_initialized(_world: Dictionary) -> void:
@@ -650,3 +658,40 @@ func _unlock_player() -> void:
 	var player: Node = _current_view.get_player_node() if _current_view.has_method("get_player_node") else null
 	if player != null and player.has_method("set_move_blocked"):
 		player.set_move_blocked(false)
+
+
+# ============================================================================
+# F2 边界提示(HUD 固定位置,在 WoodClock 下方)
+# ============================================================================
+
+func _build_boundary_hint() -> void:
+	"""构造边界提示气泡 + 挂到 HUD CanvasLayer。
+	位置:屏幕顶部中央,WoodClock (top:-4~48) 下方,跟 PausedChip 同高度区间。"""
+	_boundary_hint = PanelContainer.new()
+	_boundary_hint.add_theme_stylebox_override("panel", ChromeTheme.make_parchment_floating(0.92))
+	_boundary_hint.visible = false
+	_boundary_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# WoodClock 在 viewport 顶部 -4~48,PausedChip 在 60~80。边界提示放 90~120。
+	_boundary_hint.offset_left = 480
+	_boundary_hint.offset_top = 90
+	_boundary_hint.offset_right = 800
+	_boundary_hint.offset_bottom = 120
+
+	_boundary_hint_label = Label.new()
+	_boundary_hint_label.add_theme_font_override("font", ChromeTheme.font_serif(600))
+	_boundary_hint_label.add_theme_font_size_override("font_size", 14)
+	_boundary_hint_label.add_theme_color_override("font_color", ChromeTheme.COLOR_DEEP_INK)
+	_boundary_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boundary_hint.add_child(_boundary_hint_label)
+
+	$HUD.add_child(_boundary_hint)
+
+
+func _on_boundary_hint_changed(should_show: bool, text: String) -> void:
+	if _boundary_hint == null:
+		return
+	if should_show:
+		_boundary_hint_label.text = text
+		_boundary_hint.visible = true
+	else:
+		_boundary_hint.visible = false
