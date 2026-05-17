@@ -48,7 +48,7 @@ f73d767  启动脚本端口冲突 + LoadingOverlay 隐藏 game_time
 7a64997  docs 兵分两路交接包
 ```
 
-**"持续打磨"9 commit**(Eric 出差,Claude Code 自动跑完):
+**"持续打磨"14 commit**(Eric 出差,Claude Code 自动跑完):
 ```
 d8cdc6d  P1.1 MemoryPanel 加 4 个 filter tab
 87a9bcd  P1.2 daily/fine/reflection JSON parse 容错(+5 单测)
@@ -56,22 +56,33 @@ d8cdc6d  P1.1 MemoryPanel 加 4 个 filter tab
 7329560  P2.1 💭 思考指示器残留修复(thinking_failed event + 30s 防御)
 cba5c24  P2.3 fine plan prompt 鼓励 LLM 适时产 talk_to
 4273001  P3 GET /sim/health + LLM 累计成本跟踪(+2 单测)
-cf2b5f7  docs 同步进度
+cf2b5f7  docs 中期同步
 8644864  P3.x Godot HUD 实时显示 LLM 总成本 + 命中率(5 秒轮询)
 7334475  P3.y .env.example 补全 7 个 BLOCK7_* 变量 + Inspector 宽度 270→300
+63b54f9  docs 同步 9 commit 后状态
+e5f28c5  P3.z 启动校验 _validate_settings + DialogueManager 统计
+9d8e456  P3.zz HUD 加 💬 对话计数 + 加速模式时钟隐藏 minute
+ff08f1b  P3.zzz 点 agent sprite 直接弹 memory 面板(免点 Inspector 按钮)
+e998769  P3.zzzz LLM 错误率统计 → /sim/health
 ```
 
-**测试基线**:**122 mock 测试全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)
+**测试基线**:**122 mock 测试全绿** + **真实 API 缓存命中率 92.9% 已实测**(¥0.02)
 
 **Eric 回来一眼看效果**:
-- 启 backend 后,Godot HUD 左下角 PausePanel 旁边显示实时成本"¥0.XXX / 0.XX/min / 命中 9X%"
-- 点 Inspector 里 agent 后,右下 MemoryPanel 顶部多了 4 个 toggle button 切换记忆类型
+- 启 backend 后 Godot HUD 左下显示实时 `¥0.XXX / 0.XX/min / 命中 9X%`
+- ReflectionPanel 加二行 `💬 对话: N 场(M 句)`,与紫色反思计数并列
+- 点 Inspector 按钮 **或** 直接鼠标点 agent sprite → 右下 MemoryPanel 浮出
+- MemoryPanel 顶部 4 个 toggle:全部 / 🌒反思 / 👁观察 / 📋计划
 - Inspector 加宽 30px,长 action 文字不再撞边
 - 12 agent 名牌永不撞位(sorted index 占满 4×3 网格)
 - backend log 不再出现"daily JSON parse failed"(三步容错)
 - 💭 思考标记最长 30 秒自动消失
 - LLM 更倾向产 talk_to(prompt 加了鼓励规则)
-- `curl http://127.0.0.1:8000/sim/health` 一行看清 uptime/tick/reflection/llm 全部统计
+- backend 启动时校验 .env / persona 目录,缺失 key 警告 + 缺 yaml 直接抛
+- `curl http://127.0.0.1:8000/sim/health` 一行看清 uptime / tick / reflection
+  / dialogue / llm 全部统计(含错误率 error_rate)
+- 加速模式(time_scale=3600)下时钟只显示 hour,不再 minute 抖动
+- DialogueManager / DeepSeekClient 都暴露累计统计字段
 
 ---
 
