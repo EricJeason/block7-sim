@@ -48,17 +48,30 @@ f73d767  启动脚本端口冲突 + LoadingOverlay 隐藏 game_time
 7a64997  docs 兵分两路交接包
 ```
 
-**"持续打磨"6 commit**(Eric 出差,Claude Code 自动跑的):
+**"持续打磨"9 commit**(Eric 出差,Claude Code 自动跑完):
 ```
 d8cdc6d  P1.1 MemoryPanel 加 4 个 filter tab
-87a9bcd  P1.2 daily/fine/reflection JSON parse 容错
+87a9bcd  P1.2 daily/fine/reflection JSON parse 容错(+5 单测)
 39d1165  P1.3 agent 名牌站位用 sorted index 代替 hash
-7329560  P2.1 💭 思考指示器残留修复
+7329560  P2.1 💭 思考指示器残留修复(thinking_failed event + 30s 防御)
 cba5c24  P2.3 fine plan prompt 鼓励 LLM 适时产 talk_to
-4273001  P3 GET /sim/health + LLM 累计成本跟踪
+4273001  P3 GET /sim/health + LLM 累计成本跟踪(+2 单测)
+cf2b5f7  docs 同步进度
+8644864  P3.x Godot HUD 实时显示 LLM 总成本 + 命中率(5 秒轮询)
+7334475  P3.y .env.example 补全 7 个 BLOCK7_* 变量 + Inspector 宽度 270→300
 ```
 
 **测试基线**:**122 mock 测试全绿** + 3 真实 API 集成测试(¥0.05/次,需 .env)
+
+**Eric 回来一眼看效果**:
+- 启 backend 后,Godot HUD 左下角 PausePanel 旁边显示实时成本"¥0.XXX / 0.XX/min / 命中 9X%"
+- 点 Inspector 里 agent 后,右下 MemoryPanel 顶部多了 4 个 toggle button 切换记忆类型
+- Inspector 加宽 30px,长 action 文字不再撞边
+- 12 agent 名牌永不撞位(sorted index 占满 4×3 网格)
+- backend log 不再出现"daily JSON parse failed"(三步容错)
+- 💭 思考标记最长 30 秒自动消失
+- LLM 更倾向产 talk_to(prompt 加了鼓励规则)
+- `curl http://127.0.0.1:8000/sim/health` 一行看清 uptime/tick/reflection/llm 全部统计
 
 ---
 
@@ -96,24 +109,28 @@ cba5c24  P2.3 fine plan prompt 鼓励 LLM 适时产 talk_to
 > 这是我接手"自动化打磨"后给自己排的工作。**请下一任 session 检查这些任务的状态**——它们应该作为独立 commit 出现在 git log。
 
 ### 优先级 1(已全部完成 ✅)
-- [x] **修 #1 R/O/P 快捷键 / memory 类型 tab** → commit `d8cdc6d` (MemoryPanel 加 4 toggle button)
-- [x] **修 #6 daily JSON parse 容错** → commit `87a9bcd` (_robust_json_loads + 5 单测)
-- [x] **修 #4 _slot_position_for 撞位** → commit `39d1165` (sorted agent_id index 代替 hash)
+- [x] **修 #1 R/O/P 快捷键 / memory 类型 tab** → commit `d8cdc6d`
+- [x] **修 #6 daily JSON parse 容错** → commit `87a9bcd`
+- [x] **修 #4 _slot_position_for 撞位** → commit `39d1165`
 
-### 优先级 2(部分完成)
-- [x] **修 #3 💭 残留** → commit `7329560` (thinking_failed event + 30s 防御 timeout)
-- [ ] **修 #2 Inspector 撞位** —— 留 Day 2 UI 重做时一起改
-- [ ] **加 GET /agent/{id}/reflections 专用端点** —— 跳过,现有 GET /agent/{id}/memories?type=reflection 已能拿
-- [x] **加 daily plan / fine plan prompt 微调** → commit `cba5c24` (鼓励 LLM 适时产 talk_to)
+### 优先级 2(主要完成 ✅)
+- [x] **修 #3 💭 残留** → commit `7329560`
+- [x] **修 #2 Inspector 撞位** → commit `7334475` (宽度 270→300 + Title/Scroll 跟着扩)
+- [-] **加 GET /agent/{id}/reflections 专用端点** —— 跳过,现有 type=reflection 已能拿
+- [x] **加 daily plan / fine plan prompt 微调** → commit `cba5c24`
 
-### 优先级 3(部分完成)
-- [ ] **修 #7 反思 0 条问题** —— 加速模式下偶发,正常 time_scale=60 不重现,暂不动
-- [x] **加 backend 健康检查路由** → commit `4273001` (GET /sim/health + LLM 累计统计 + 缓存命中率)
+### 优先级 3(已完成 ✅)
+- [-] **修 #7 反思 0 条问题** —— 加速模式偶发,正常 60 不重现,暂不动
+- [x] **加 backend 健康检查路由** → commit `4273001` + Godot HUD 显示 `8644864`
+- [x] **.env.example 补全 BLOCK7_* 变量** → commit `7334475`
 
 ### 优先级 4(未做,留给下一任)
-- [ ] **跑长时间 sim 压测**——在 LL 模式(low LLM,只用 Flash)跑 2-3 游戏日,看 memory 表增长曲线 + 压缩有效性
-- [ ] **加 sim 历史回放**——把每次跑的 SimEvent 序列化到 JSON,后续可以重放
-- [ ] **Inspector / TimePanel / ReflectionPanel UI 装饰**——等 Claude Design 设计稿出来再做
+- [ ] **跑长时间 sim 压测**——在 LL 模式跑 2-3 游戏日,看 memory 增长 + 压缩有效性
+- [ ] **加 sim 历史回放**——把每次跑的 SimEvent 序列化到 JSON,后续可重放
+- [ ] **TileMap + 寻路 + 动画(Block J 美术化)**——1.5-2 天工作,等 Claude Design 稿
+- [ ] **Inspector / 各 Panel UI 装饰边框**——等 Claude Design 稿出来再做
+- [ ] **Block K 玩家介入**——POST /agent/{id}/inject_event + 扮演 agent 说话
+- [ ] **修加速模式下时钟显示**——time_scale=3600 时 minute 字段意义不大,可隐藏
 
 ---
 

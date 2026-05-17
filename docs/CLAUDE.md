@@ -56,9 +56,10 @@
 **Day 1 MVP 全部完成**:sim 引擎 + Godot 端实时显示 + 对话 + 反思 + 压缩。
 12 agent 真实活动 + 对话 + 跨日反思,论文级别的 emergent narrative。
 
-**2026-05-17 持续打磨 6 commit** 完成:MemoryPanel filter tab、JSON 容错、
+**2026-05-17 持续打磨 9 commit** 完成:MemoryPanel filter tab、JSON 容错、
 agent 名牌 sorted index 站位、💭 残留修复、talk_to prompt 微调、
-GET /sim/health + LLM 累计成本统计。
+GET /sim/health + LLM 累计成本统计、Godot HUD 实时成本显示、
+Inspector 宽度调整、.env.example 补全 7 个 BLOCK7_* 变量。
 
 ---
 
