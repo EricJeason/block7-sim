@@ -236,13 +236,15 @@ Eric 出远门期间 Claude Code 自主完成 F0→F4 + v0.3 RPG 容器框架。
 | `1e2f68f` | F4.3 | R 关系网:12 节点圆形布局 + 治愈者三态紫圈(实线/虚线/无)+ 7 条 known links + 底部图例 |
 | `a02a05d` | v0.3 RPG | C/I/J/P 共用 RpgPlaceholder modal + 数据 schema 预览 + 占位插图 + "敬请期待" |
 | `5d869a0` | F4.4 轻量 | BubbleMenu 3 句具体打招呼让玩家自选(取代随机种子)→ 后端 LLM 据此生成 |
+| `fc057d4` | docs | GAP 文档附 B 实装记录 |
+| `8cb2a78` | F4.4 完整 | 全屏 DialogueSession modal:LineEdit 自由输入 + 持续对话 + WS 实时刷新 + 双方气泡 + 思考态;backend continue/end 路由 + auto_finalize 字段(143 tests) |
 
 ### 测试基线
 
-- **后端 pytest**:122 → 139 全过(+5 player binding + 4 player session + 8 其他)
+- **后端 pytest**:122 → **143 全过**(+5 player binding + 4 player session + 4 continue/end + 8 其他)
 - **Cache 命中率**:Layer 0/1 字节稳定保护,所有 LLM 调用走原 prompt 结构 ✓
 - **Godot --headless cold-start**:所有 commit 后都验证通过(无 class_name cache 依赖)
-- **真实 API**:F4.1 玩家发起对话使用 DeepSeek Flash,单句 ¥0.001-0.003
+- **真实 API**:F4.1 / F4.4 玩家发起对话使用 DeepSeek Flash,单句 ¥0.001-0.003
 
 ### 全部键位(v0.3 全解锁)
 
@@ -264,12 +266,13 @@ Eric 出远门期间 Claude Code 自主完成 F0→F4 + v0.3 RPG 容器框架。
 
 ### 已知遗留(给下一任 session 或 Eric 回来)
 
-1. **F4.4 全屏 DialogueSession (S11) 完整版**:目前只做轻量 BubbleMenu 自选,完整全屏 modal + portrait + 自由输入框 + LLM 候选生成 留 v0.5+
+1. **F4.4 LLM 候选自动生成**:DialogueSession modal 当前是"自由输入"模式,设计稿 S11 还有"3 LLM 候选 + ✎ 复制编辑 + → 直接发送"功能(后端要新加 generate_player_options 路由让 LLM 替玩家生成 3 句候选)
 2. **v0.3 RPG 容器 C/I/J/P 真实内容**:目前只是 placeholder + schema 预览,具体 stat bar / 物品 grid / 线索时间线 / 解锁度 留后续
 3. **NPC 头顶常驻 action**:Eric 提过"日后用角色头顶显示工作内容",F4 没动,当前仍是 hover 距离触发
 4. **场景像素化**:GAP §2.2 W1 选了保留现有 4 张 ChatGPT 大背景图,SVG 像素化版留以后
 5. **anime-pixel sprite**:11 个 NPC 还是色块占位(只有艾琳有真实素材),v0.4+ 要美术补
 6. **F4.3 关系网线索积分**:目前 suspicion / known_links 都 hard-code,v0.4+ 要 backend 驱动(玩家近距离观察 / 听说 / 直接对话累计)
+7. **NPC portrait 资产**:DialogueSession 头部用 idle.png 兜底,11 个 NPC 还没真 portrait,设计稿要 256×256 anime-pixel bust shot
 
 ### 下次接手:从哪开始
 
