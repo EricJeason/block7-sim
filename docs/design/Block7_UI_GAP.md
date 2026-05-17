@@ -209,4 +209,78 @@
 
 ---
 
-**完。等你 review。**
+## 附 B:实装记录(2026-05-17 自主推进)
+
+Eric 出远门期间 Claude Code 自主完成 F0→F4 + v0.3 RPG 容器框架。
+
+### 已完成 commits(按时间序)
+
+| Commit | 阶段 | 内容 |
+|---|---|---|
+| `39bbcfc` | F0 | 视觉地基:字体 7 个 + ChromeTheme 6 StyleBox + KeyCap + 设计稿包 |
+| `e487021` | F1 | 极简 HUD:WoodClock(顶部木板时钟)+ LocationLabel(左下场所标)+ KeyHints(右下键位列阵)+ PausedChip |
+| `e26e5c2` | bug | 3 个 .ps1 加 UTF-8 BOM 修中文乱码 |
+| `93781af` | F1 fix | LoadingOverlay 文字"点左下 ▶ 开始按钮"→"按 Tab 启动预热" |
+| `6e26a2b` | F2A 后端 | locations.yaml 加 anchors + name_en + LocationLoader.extra() + /sim/player/bind + scheduler 跳过玩家 LLM(135 tests) |
+| `6e68624` | F2B Godot | PlayerNode(WASD + 朝向 + 边界 + YOU 标签)+ LocationView 跳过玩家 + 锚点站位 + bind_player 自动调用 |
+| `ea7b41b` | F2C+D | AgentNode HoverWhisper + E-prompt + BubbleMenu(E 3 选项)+ 删 💭 思考灯泡 |
+| `c577724` | tooling | 一键启动脚本 `scripts/launch_all.ps1`(关旧进程 + 启 backend + 启 Godot) |
+| `4c0722d` | F2 fix | 4 修复:删重复场所标 + 修朝向 + 边界自动切场所 + 全屏 F11 |
+| `404e8f7` | F2 polish | 边界提示气泡 + 打招呼 stub 气泡对答 + BubbleMenu 键盘修复(_input + W/S/E/Enter/Space + 100ms grace) |
+| `d2dea75` | F2 fix | 边界范围扩大 380→180(玩家视觉到屏幕边缘才触发) |
+| `f01c44c` | F2 fix | 边界提示改 HUD 固定位置(玩家走顶部不再被顶出屏) |
+| `b1ed7c8` | F3 | Q 场所概览(半屏羊皮纸卡片)+ Esc 系统菜单(右侧 sidebar 8 选项) |
+| `01f3e12` | F3 polish | 对话气泡 1.5× 慢速(0.18s/字→0.27s/字)+ HoverWhisper 滞后区(140/240) |
+| `030f6d9` | F4.1 后端+前端 | 打招呼接 LLM:DialogueManager.try_start_player_session + /dialogue/player_greet + BackendClient.player_greet(139 tests) |
+| `47bb818` | F4.2 | F 读自己的心:全屏笔记本双页 modal(左玩家想法 Ma Shan Zheng 100% / 右"另一种声音" Caveat 62%)+ 拉 reflections |
+| `1e2f68f` | F4.3 | R 关系网:12 节点圆形布局 + 治愈者三态紫圈(实线/虚线/无)+ 7 条 known links + 底部图例 |
+| `a02a05d` | v0.3 RPG | C/I/J/P 共用 RpgPlaceholder modal + 数据 schema 预览 + 占位插图 + "敬请期待" |
+| `5d869a0` | F4.4 轻量 | BubbleMenu 3 句具体打招呼让玩家自选(取代随机种子)→ 后端 LLM 据此生成 |
+
+### 测试基线
+
+- **后端 pytest**:122 → 139 全过(+5 player binding + 4 player session + 8 其他)
+- **Cache 命中率**:Layer 0/1 字节稳定保护,所有 LLM 调用走原 prompt 结构 ✓
+- **Godot --headless cold-start**:所有 commit 后都验证通过(无 class_name cache 依赖)
+- **真实 API**:F4.1 玩家发起对话使用 DeepSeek Flash,单句 ¥0.001-0.003
+
+### 全部键位(v0.3 全解锁)
+
+| 键 | 功能 | 状态 |
+|---|---|---|
+| WASD | 移动 | ✓ F2 |
+| E | 走近 NPC 弹气泡菜单 → 选 3 句具体话发后端 LLM | ✓ F4.4 |
+| C | 角色面板(placeholder) | ✓ v0.3 framework |
+| I | 背包(placeholder) | ✓ v0.3 framework |
+| J | 线索/任务(placeholder) | ✓ v0.3 framework |
+| P | 图鉴(placeholder) | ✓ v0.3 framework |
+| Q | 场所概览(半屏卡片) | ✓ F3 |
+| F | 读自己的心(笔记本双页) | ✓ F4.2 |
+| R | 关系网(12 节点 + 紫圈) | ✓ F4.3 |
+| Esc | 系统菜单(右侧 sidebar) | ✓ F3 |
+| Tab | 暂停/恢复 | ✓ F1 |
+| F11 | 切全屏 ↔ Maximized | ✓ F2 |
+| 1-4 | debug 传送场所 | ✓ 保留 |
+
+### 已知遗留(给下一任 session 或 Eric 回来)
+
+1. **F4.4 全屏 DialogueSession (S11) 完整版**:目前只做轻量 BubbleMenu 自选,完整全屏 modal + portrait + 自由输入框 + LLM 候选生成 留 v0.5+
+2. **v0.3 RPG 容器 C/I/J/P 真实内容**:目前只是 placeholder + schema 预览,具体 stat bar / 物品 grid / 线索时间线 / 解锁度 留后续
+3. **NPC 头顶常驻 action**:Eric 提过"日后用角色头顶显示工作内容",F4 没动,当前仍是 hover 距离触发
+4. **场景像素化**:GAP §2.2 W1 选了保留现有 4 张 ChatGPT 大背景图,SVG 像素化版留以后
+5. **anime-pixel sprite**:11 个 NPC 还是色块占位(只有艾琳有真实素材),v0.4+ 要美术补
+6. **F4.3 关系网线索积分**:目前 suspicion / known_links 都 hard-code,v0.4+ 要 backend 驱动(玩家近距离观察 / 听说 / 直接对话累计)
+
+### 下次接手:从哪开始
+
+**推荐先做**(高价值低风险):
+- v0.3 C 角色面板真实数据(读玩家 persona + reflection 统计) — 4-6h
+- F4.4 完整版 S11 全屏对话 modal — 8-12h(需要后端 LLM 候选生成)
+
+**中等价值**:
+- v0.3 P 图鉴接 codex 解锁系统(后端需 + agent 之间互动累计)
+- F4.3 关系网 backend 驱动线索积分
+
+**风险高的**(等大决策):
+- 场景 SVG/TileMap 化(Block J,1.5-2 天)
+- 11 个 NPC anime-pixel sprite(需美术或 AI 生成)
