@@ -185,6 +185,13 @@ func _unhandled_input(event: InputEvent) -> void:
 # ------------------------------------------------------- HUD updates
 
 func _update_time_label() -> void:
+	# 预热期间显示占位,避免给用户"时间却仍在流动"的认知冲突
+	if not GameWorld.is_warmup_complete():
+		if GameWorld.paused:
+			time_label.text = "Day --, --:--"
+		else:
+			time_label.text = "Day --, 预热中"
+		return
 	var gt: float = GameWorld.game_time
 	var seconds_per_day: float = 86400.0
 	var day: int = int(gt / seconds_per_day) + 1
