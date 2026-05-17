@@ -64,6 +64,9 @@ signal daily_reflection_completed(game_day: int, reflection_count: int, merged_c
 ## 玩家点 AgentNode sprite/色块时触发(LocationView 转发)
 signal agent_clicked(agent_id: String)
 
+## F2 玩家绑定变化(BackendClient.bind_player 成功后触发)
+signal player_bound(agent_id: String)
+
 ## API key 未配置 → 触发首页弹窗(BackendClient 启动时调 /sim/api_key/status)
 signal api_key_required
 ## API key 配置完成 → 弹窗隐藏 + BackendClient 恢复 fetch_world / 开 WS
@@ -80,6 +83,17 @@ var agents: Dictionary = {}
 
 ## 玩家当前查看的场所 id;默认 lao_song_plaza。
 var current_view_location: String = "lao_song_plaza"
+
+## F2 玩家绑定:扮演的 agent_id(默认艾琳)。"" = 上帝模式(未绑定)。
+## BackendClient.bind_player() 成功后由后端确认 + 触发 player_bound signal。
+var player_agent_id: String = "agent_04"
+
+## F2 玩家位置:在当前场所内的 (x, y) 坐标 + 朝向。
+## 由 PlayerNode 维护;WASD 移动时 update。后端不持久(player agent runtime location 由
+## "玩家位于场所 X" 这种粗粒度跟踪,精确 xy 不上送)。
+var player_x: float = 640.0  # 1280×720 中央
+var player_y: float = 540.0
+var player_facing: String = "s"  # n/s/e/w
 
 ## 最近一次 tick 的 game_time。
 var game_time: float = 0.0
@@ -289,6 +303,39 @@ func get_location(location_id: String) -> Dictionary:
 
 func get_location_ids() -> Array:
 	return locations.keys()
+
+
+# ----------------------------------------------------- F2 anchors
+
+func get_location_anchors(location_id: String) -> Array:
+	"""返回 location 的锚点数组 [{id, label, x, y}, ...](来自 backend /world)。
+	未知 location 返回空数组。"""
+	var loc: Dictionary = locations.get(location_id, {})
+	var anchors = loc.get("anchors", [])
+	if anchors is Array:
+		return anchors
+	return []
+
+
+func get_anchor(location_id: String, anchor_id: String) -> Dictionary:
+	"""精确取某场所的某锚点。找不到返回空 dict。"""
+	for a in get_location_anchors(location_id):
+		if a is Dictionary and a.get("id", "") == anchor_id:
+			return a
+	return {}
+
+
+# ----------------------------------------------------- F2 player binding
+
+func confirm_player_bound(agent_id: String) -> void:
+	"""BackendClient.bind_player 成功后调此 — 标定玩家身份 + 触发 signal。"""
+	player_agent_id = agent_id
+	player_bound.emit(agent_id)
+
+
+func is_player_agent(agent_id: String) -> bool:
+	"""判断 agent_id 是不是玩家(给 AgentNode 渲染时区分)。"""
+	return agent_id != "" and agent_id == player_agent_id
 
 
 # ----------------------------------------------------- view location

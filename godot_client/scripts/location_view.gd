@@ -11,6 +11,7 @@ class_name LocationView
 ##    forward 给对应 AgentNode
 
 const AgentNodeScene := preload("res://scenes/AgentNode.tscn")
+const PlayerNodeScene := preload("res://scenes/PlayerNode.tscn")
 
 # 通过 .tscn 中的 export 字段或 Main 切场所时设置
 @export var location_id: String = ""
@@ -20,6 +21,9 @@ const AgentNodeScene := preload("res://scenes/AgentNode.tscn")
 
 ## agent_id → AgentNode 实例
 var _agent_nodes: Dictionary = {}
+
+## F2 玩家节点(每个 LocationView 一份,场所切换时随之销毁重建)
+var _player_node: Node2D = null
 
 @onready var bg_rect: ColorRect = $BackgroundRect
 @onready var bg_sprite: Sprite2D = $BackgroundSprite
@@ -44,6 +48,9 @@ func _ready() -> void:
 
 	# 若 world 已经初始化(切场所重新进入时),立即填充
 	_populate_agents()
+
+	# F2: 实例化玩家节点(扮演 agent_04 艾琳)
+	_spawn_player_node()
 
 
 # --------------------------------------------------------- background
@@ -95,24 +102,44 @@ func _update_location_label() -> void:
 # ----------------------------------------------------- agent visibility
 
 func _populate_agents() -> void:
-	"""扫描 GameWorld.agents,把当前在本场所的 agent 实例化为子节点。"""
+	"""扫描 GameWorld.agents,把当前在本场所的 agent 实例化为子节点。
+	F2: 跳过 player_agent_id(玩家由 PlayerNode 单独渲染,不重复)。"""
 	if location_id == "":
 		return
 	for agent in GameWorld.get_agents_in_location(location_id):
-		_ensure_agent_node(agent["agent_id"])
+		var aid: String = agent["agent_id"]
+		if GameWorld.is_player_agent(aid):
+			continue
+		_ensure_agent_node(aid)
 
 
 func _ensure_agent_node(agent_id: String) -> Node2D:
 	if _agent_nodes.has(agent_id):
 		return _agent_nodes[agent_id]
+	# F2: 玩家 agent 不渲染 AgentNode(由 PlayerNode 处理)
+	if GameWorld.is_player_agent(agent_id):
+		return null
 	var node: Node2D = AgentNodeScene.instantiate()
 	node.name = agent_id
 	node.set("agent_id", agent_id)
-	# 随机分布:避免角色叠一起。简单的伪随机靠 agent_id hash。
-	node.position = _slot_position_for(agent_id)
+	# F2: 用锚点站位代替 4×3 网格
+	node.position = _anchor_position_for(agent_id)
+	# F2: z_index 跟随 y(前后遮挡)
+	node.z_index = int(node.position.y)
 	agents_container.add_child(node)
 	_agent_nodes[agent_id] = node
 	return node
+
+
+func _spawn_player_node() -> void:
+	"""F2: 在本 LocationView 加 PlayerNode(扮演 agent_04)。
+	切换场所时旧 LocationView free → 旧 PlayerNode 一起销毁;新 LocationView 重建。
+	位置:从 GameWorld.player_x/y 恢复(默认 640, 540 场所中央)。"""
+	if _player_node != null:
+		return
+	_player_node = PlayerNodeScene.instantiate()
+	_player_node.name = "PlayerNode"
+	agents_container.add_child(_player_node)
 
 
 func _remove_agent_node(agent_id: String) -> void:
@@ -123,21 +150,41 @@ func _remove_agent_node(agent_id: String) -> void:
 	node.queue_free()
 
 
-func _slot_position_for(agent_id: String) -> Vector2:
-	"""按 全局 agent_id 字典序 index 分配场内站位。
+func _anchor_position_for(agent_id: String) -> Vector2:
+	"""F2 锚点站位:NPC 按 sorted index 映射到 location 的锚点。
 
-	原版用 agent_id.hash() % 12,12 agent 经常落同一格(hash mod 12 不保证唯一)。
-	现在用 GameWorld.agents.keys() sorted 后的 index → 12 个 agent 落 12 个唯一位置,
-	某场所内不会再有视觉撞位。每个 agent 在所有场所站固定位置 = 玩家容易记住"林秋
-	总在最左上"这种空间锚定。
+	设计稿原则:每个场所 6-7 个语义锚点(井边/老松下/酒馆门口...)。
+	NPC 不再 4×3 撞位,而是分布在场景里有语义的点上。
 
-	网格 4x3:x 220-940(避开右侧 inspector 280px),y 320-580。
+	算法:取 GameWorld.is_in_location(agent_id, location_id) 的 NPC list sorted,
+	找到本 agent 的 index,映射到 anchors[index % anchor_count]。
+
+	若 location 没有 anchors(后端 yaml 没配)→ fallback 4×3 网格(老版本)。
 	"""
+	var anchors: Array = GameWorld.get_location_anchors(location_id)
+	if anchors.is_empty():
+		return _fallback_grid_position(agent_id)
+
+	# 取当前在本场所的 agent list(不含玩家),sorted
+	var here_ids: Array = []
+	for a in GameWorld.get_agents_in_location(location_id):
+		var aid: String = a.get("agent_id", "")
+		if aid != "" and not GameWorld.is_player_agent(aid):
+			here_ids.append(aid)
+	here_ids.sort()
+	var idx: int = here_ids.find(agent_id)
+	if idx < 0:
+		idx = 0
+	var anchor: Dictionary = anchors[idx % anchors.size()]
+	return Vector2(float(anchor.get("x", 640)), float(anchor.get("y", 540)))
+
+
+func _fallback_grid_position(agent_id: String) -> Vector2:
+	"""无 anchors 时的 fallback,旧 4×3 网格逻辑。"""
 	var all_ids: Array = GameWorld.agents.keys()
-	all_ids.sort()  # 字典序;agent_01..12 → 自然有序
+	all_ids.sort()
 	var idx: int = all_ids.find(agent_id)
 	if idx < 0:
-		# 未注册的 agent 用 hash 兜底(不应发生,但稳)
 		idx = absi(agent_id.hash()) % 12
 	var col: int = idx % 4
 	@warning_ignore("integer_division")

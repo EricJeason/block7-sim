@@ -169,11 +169,42 @@ func _fetch_world() -> void:
 				parsed.get("locations", []).size(),
 			])
 			GameWorld.apply_world_snapshot(parsed)
+			# F2: 启动后立即绑定玩家(默认艾琳 agent_04)→ backend scheduler 跳过 LLM 思考
+			bind_player(GameWorld.player_agent_id)
 			_open_websocket()
 	)
 	var err: int = http.request(BACKEND_URL + "/world")
 	if err != OK:
 		push_warning("[backend_client] /world request err=%d" % err)
+		http.queue_free()
+
+
+# ----------------------------------------------------- F2 player binding
+
+func bind_player(agent_id: String) -> void:
+	"""POST /sim/player/bind {agent_id} — 后端 scheduler 跳过此 agent 的 LLM 思考。
+	成功后调 GameWorld.confirm_player_bound 触发 player_bound signal。
+	"""
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+			http.queue_free()
+			if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+				push_warning("[backend_client] /sim/player/bind failed: result=%d code=%d body=%s" % [
+					result, code, body.get_string_from_utf8().substr(0, 200)
+				])
+				return
+			print("[backend_client] player bound to %s" % agent_id)
+			GameWorld.confirm_player_bound(agent_id)
+	)
+	var body_json: String = JSON.stringify({"agent_id": agent_id})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err: int = http.request(
+		BACKEND_URL + "/sim/player/bind", headers, HTTPClient.METHOD_POST, body_json
+	)
+	if err != OK:
+		push_warning("[backend_client] POST /sim/player/bind err=%d" % err)
 		http.queue_free()
 
 
