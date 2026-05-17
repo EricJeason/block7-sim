@@ -415,6 +415,16 @@ class SimEngine:
                     game_time=gt,
                 )
             )
+        if result.thinking_failed:
+            # thinking 被 cancel / 抛异常 — 复用 thinking_completed 通知前端
+            # 隐藏 💭(原代码只发 completed,失败时 💭 残留)
+            self._publish(
+                SimEvent(
+                    type="thinking_failed",
+                    agent_id=result.agent_id,
+                    game_time=gt,
+                )
+            )
 
     # ------------------------------------------------------ external emitter
 

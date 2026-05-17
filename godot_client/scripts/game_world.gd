@@ -159,6 +159,10 @@ func handle_sim_event(event: Dictionary) -> void:
 			agent_thinking_started.emit(agent_id)
 		"thinking_completed":
 			agent_thinking_completed.emit(agent_id, int(payload.get("appended_count", 0)))
+		"thinking_failed":
+			# 复用 thinking_completed 信号 → AgentNode 隐藏 💭
+			# (语义都是"思考结束",无论成功失败都不应继续显示思考指示器)
+			agent_thinking_completed.emit(agent_id, 0)
 		"paused_changed":
 			var new_paused: bool = bool(payload.get("paused", false))
 			if new_paused != paused:

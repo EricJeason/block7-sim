@@ -94,12 +94,23 @@ func on_action_completed(_action: Dictionary) -> void:
 	action_label.text = ""
 
 
+var _thinking_timeout_timer: SceneTreeTimer = null
+
 func on_thinking_started() -> void:
 	thinking_indicator.visible = true
+	# 防御:30 秒 timeout 兜底自动隐藏(防 WS 漏事件 / 后端 cancel 未推)
+	_thinking_timeout_timer = get_tree().create_timer(30.0)
+	var snapshot_timer := _thinking_timeout_timer
+	snapshot_timer.timeout.connect(func() -> void:
+		# 仅在仍是这个 timer 时才生效(新 thinking 启动会更新 _thinking_timeout_timer)
+		if _thinking_timeout_timer == snapshot_timer:
+			thinking_indicator.visible = false
+	)
 
 
 func on_thinking_completed(_appended_count: int) -> void:
 	thinking_indicator.visible = false
+	_thinking_timeout_timer = null  # 取消 timeout
 
 
 # ------------------------------------------------------- dialogue speech
