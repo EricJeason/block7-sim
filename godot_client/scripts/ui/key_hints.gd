@@ -70,6 +70,7 @@ static func default_hints_v02(e_target_name: String = "") -> Array[Dictionary]:
 		{"key": "E", "label": e_label},
 		{"key": "Q", "label": "场所概览"},
 		{"key": "F", "label": "读自己的心"},
+		{"key": "R", "label": "关系网"},
 		{"key": "Esc", "label": "菜单"},
 		{"key": "Tab", "label": "暂停"},
 		{"key": "F11", "label": "全屏"},

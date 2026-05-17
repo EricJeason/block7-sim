@@ -30,6 +30,7 @@ const SystemMenuScene := preload("res://scenes/ui/SystemMenu.tscn")
 
 # F4.2 modal scenes
 const InnerHeartScene := preload("res://scenes/ui/InnerHeart.tscn")
+const RelationshipNetworkScene := preload("res://scenes/ui/RelationshipNetwork.tscn")
 
 @onready var location_container: Node2D = $LocationContainer
 @onready var time_label: Label = $HUD/TimePanel/TimeLabel
@@ -73,6 +74,9 @@ var _system_menu: Control = null
 
 # F4.2 InnerHeart modal
 var _inner_heart: Control = null
+
+# F4.3 RelationshipNetwork modal
+var _relationship_network: Control = null
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -285,8 +289,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		GameWorld.switch_view_to("warm_valley_farm")
 	elif event.is_action_pressed("view_silent_tower_ruins"):
 		GameWorld.switch_view_to("silent_tower_ruins")
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_R:
-		_refresh_inspector()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_R and not event.echo:
+		# F4.3: R 关系网(原 KEY_R 是旧 inspector 刷新,inspector 已 visible=false)
+		get_viewport().set_input_as_handled()
+		_toggle_relationship_network()
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_TAB and not event.echo:
 		# F1: Tab 切换暂停状态(等价旧 PauseButton)
 		get_viewport().set_input_as_handled()
@@ -836,3 +842,36 @@ func _toggle_inner_heart() -> void:
 					reflections.append(m)
 			_inner_heart.setup(player_name, reflections)
 	)
+
+
+# ============================================================================
+# F4.3 R 关系网
+# ============================================================================
+
+func _toggle_relationship_network() -> void:
+	"""按 R 切换 RelationshipNetwork modal。"""
+	if _relationship_network != null and is_instance_valid(_relationship_network):
+		_relationship_network.queue_free()
+		_relationship_network = null
+		_unlock_player()
+		return
+
+	# 关闭其他 modal
+	if _inner_heart != null and is_instance_valid(_inner_heart):
+		_inner_heart.queue_free()
+		_inner_heart = null
+	if _location_card != null and is_instance_valid(_location_card):
+		_location_card.queue_free()
+		_location_card = null
+	if _system_menu != null and is_instance_valid(_system_menu):
+		_system_menu.queue_free()
+		_system_menu = null
+
+	var modal = RelationshipNetworkScene.instantiate()
+	$HUD.add_child(modal)
+	modal.closed.connect(func() -> void:
+		_relationship_network = null
+		_unlock_player()
+	)
+	_relationship_network = modal
+	_lock_player()

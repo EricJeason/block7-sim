@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_relationship_network"]
+
+[ext_resource type="Script" path="res://scripts/ui/relationship_network.gd" id="1_relationship_network"]
+
+[node name="RelationshipNetwork" type="Control"]
+script = ExtResource("1_relationship_network")
