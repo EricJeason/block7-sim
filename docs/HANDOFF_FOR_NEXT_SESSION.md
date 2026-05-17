@@ -1,8 +1,26 @@
 # 给下一个 Claude Code Session 的接手说明
 
-> **写于**:2026-05-17,Day 1 MVP 完成、Eric 让我"持续打磨"后开新 session 准备处理 UI 重做的节点。
+> **写于**:2026-05-17,Day 1 MVP 完成 + 21 个 commit 打磨 + GitHub 准备完成的节点。
+> Eric 即将开新 session(本对话已接近 1M 上下文)。
 > **当前 worktree**:`C:\Users\Administrator\Documents\block7-sim\.claude\worktrees\musing-dijkstra-847010`
-> **branch**:`claude/musing-dijkstra-847010`
+> **branch**:`claude/musing-dijkstra-847010`(已 ff-merge 到 `main`)
+
+## 给新 session 的开局指令
+
+**Eric 开新 session 时,第一句话告诉新 Claude**:
+
+> 我开了新 session 接手 Block-7 暮谷镇项目。请先阅读以下文件理解状态,然后等我指令:
+> 1. `docs/CLAUDE.md` — 1 分钟,红线 + 索引
+> 2. `docs/HANDOFF_FOR_NEXT_SESSION.md` — 5 分钟,本文,session 续接 + 已知遗留 + 打磨进度
+> 3. `git log --oneline -25` — 看完整 commit 链
+>
+> 我现在正在 Claude.ai 那边讨论 UI 重做。当前局面:Day 1 MVP 完整,21 个 commit 历史,
+> 122 mock 测试全绿,真实 API 缓存命中率 92.9%。GitHub 仓库刚 push 上去(看
+> `docs/PUSH_TO_GITHUB.md`)。
+
+新 session 不必重复读旧 session 的 1M 对话——本文件 + git log 即包含全部状态。
+
+---
 
 ---
 
@@ -141,7 +159,26 @@ e998769  P3.zzzz LLM 错误率统计 → /sim/health
 - [ ] **TileMap + 寻路 + 动画(Block J 美术化)**——1.5-2 天工作,等 Claude Design 稿
 - [ ] **Inspector / 各 Panel UI 装饰边框**——等 Claude Design 稿出来再做
 - [ ] **Block K 玩家介入**——POST /agent/{id}/inject_event + 扮演 agent 说话
-- [ ] **修加速模式下时钟显示**——time_scale=3600 时 minute 字段意义不大,可隐藏
+- [x] **修加速模式下时钟显示**——已做(commit 9d8e456)
+
+---
+
+## Eric 回来要做的事(优先级排序)
+
+### 🔴 立刻(2 分钟)
+1. **跑 GitHub push 脚本** — 双击 `scripts/push_to_github.ps1`
+   - 浏览器登录一次 GitHub(device code 流程)
+   - 自动 create + push 公开 repo `block7-sim`
+   - 详见 `docs/PUSH_TO_GITHUB.md`
+
+### 🟡 24 小时内(看 Claude Design 进度)
+2. **导入 Claude Design 的 UI 稿** — 把图发给新 session 的 Claude Code,据图实装
+3. **生成 11 个角色 sprite** — 用 ChatGPT/Imagen,放到 `godot_client/assets/characters/agent_xx/`(命名规范见 `SETUP.md` FAQ)
+
+### 🟢 之后(任选)
+4. Block J 真正星露谷化(TileMap+寻路+动画)
+5. Block K 玩家介入
+6. Block L 通宵观察涌现剧情
 
 ---
 
