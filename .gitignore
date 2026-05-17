@@ -4,10 +4,18 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
-.env
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# 敏感配置(任何路径下的 .env 都不入仓 — 含真实 API key)
+.env
+.env.local
+.env.*.local
+**/.env
+*-secrets.json
+*-secret.json
+secrets/
 
 # Godot
 .godot/
@@ -23,10 +31,12 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Logs & DB
-logs/*.log
+# Logs & DB(运行时产物,不入仓)
+logs/
+*.log
 *.sqlite
 *.db
+*.db-journal
 
 # Test run artifacts (real-API call summaries)
 backend/logs/
@@ -36,3 +46,8 @@ backend/logs/
 
 # Claude Code local cache
 .claude/
+
+# 临时文件
+*.bak
+*.tmp
+*~
