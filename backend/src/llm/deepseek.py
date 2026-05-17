@@ -98,6 +98,8 @@ class DeepSeekClient:
         self.total_input_tokens: int = 0
         self.total_output_tokens: int = 0
         self.total_cache_hit_tokens: int = 0
+        # 红线 #2 运行时守卫:50 次调用后若命中率 < 85% 报警(只报一次)
+        self._cache_warning_emitted: bool = False
         self._client = httpx.AsyncClient(
             timeout=timeout,
             headers={
@@ -249,4 +251,22 @@ class DeepSeekClient:
         self.total_input_tokens += input_tokens
         self.total_output_tokens += output_tokens
         self.total_cache_hit_tokens += cache_hit_tokens
+        # 红线 #2 运行时守卫:50+ 次调用后命中率仍 < 85% → 警告一次
+        # Layer 0/1 字节稳定性应保证 90%+,< 85% 表明缓存被破坏(应该重跑
+        # test_cache_hit_rate.py 定位最近哪个 prompt 改动出问题)
+        if (
+            not self._cache_warning_emitted
+            and self.total_calls >= 50
+            and self.total_input_tokens > 0
+        ):
+            rate = self.total_cache_hit_tokens / self.total_input_tokens
+            if rate < 0.85:
+                logger.warning(
+                    "[deepseek] ⚠️  cache hit rate %.1f%% < 85%% (target ≥ 90%%) — "
+                    "Layer 0/1 字节稳定性可能被破坏。检查最近 LAYER_0_SYSTEM / "
+                    "build_rich_layer_1 / dialogue layer 改动,跑 "
+                    "tests/test_cache_hit_rate.py 定位",
+                    rate * 100,
+                )
+                self._cache_warning_emitted = True
         return LLMResponse(content=content, usage=usage, raw=data)
