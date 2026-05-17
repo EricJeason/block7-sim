@@ -51,27 +51,60 @@ def remove_white_background(
     # 步骤 1:生成"接近白色"mask
     white_mask = np.all(rgb >= threshold, axis=2)
 
-    # 步骤 2:flood-fill 从 4 个角往内 — 只有和角落连通的白色才算背景
-    # 用 BFS / 简化为 scipy.ndimage.label
+    # 步骤 2:flood-fill — **所有图像边缘像素**作为起点(不只 4 个角)
+    # 这样头发顶部 + 角色身体边缘形成的"凹陷孤岛背景"也能被抠掉
+    # 另外检测"小连通白色孤岛"(头发丝间的间隙),只要面积 < small_island_max 就也抠掉
     try:
         from scipy.ndimage import label
         labels, num = label(white_mask)
-        # 找 4 个角的 label id
-        corner_labels = set()
-        for cy, cx in [(0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)]:
-            if white_mask[cy, cx]:
-                corner_labels.add(labels[cy, cx])
-        # 只有这些连通分量算背景
-        bg_mask = np.isin(labels, list(corner_labels))
+        # 收集所有**贴到图像边缘**的 label id(任意一条边)
+        edge_labels: set[int] = set()
+        for li in labels[0, :].tolist():
+            edge_labels.add(int(li))
+        for li in labels[-1, :].tolist():
+            edge_labels.add(int(li))
+        for li in labels[:, 0].tolist():
+            edge_labels.add(int(li))
+        for li in labels[:, -1].tolist():
+            edge_labels.add(int(li))
+        edge_labels.discard(0)  # 0 是 non-white background label
+        bg_mask = np.isin(labels, list(edge_labels))
+
+        # 额外:小孤岛 — 内部白色 component 面积 < SMALL_ISLAND_MAX **且** 接近纯白
+        # 才算 bg 孤岛(头发丝缝隙 / 角色凹陷区里的白色斑点)
+        # 用 "面积 < 图像面积 / 500" 作为大小阈值(更激进抓小孤岛)
+        SMALL_ISLAND_MAX = max(800, (h * w) // 500)
+        component_sizes = np.bincount(labels.ravel())
+        small_island_labels = set()
+        for li in range(1, num + 1):
+            if li in edge_labels:
+                continue
+            if component_sizes[li] <= SMALL_ISLAND_MAX:
+                # 检查这个 component 的 mean RGB — 只有"几乎纯白"(mean > 248)才算 bg 孤岛
+                # 这样不会误伤衣服上的浅色装饰
+                comp_pixels = labels == li
+                comp_rgb = rgb[comp_pixels]
+                if len(comp_rgb) > 0 and comp_rgb.mean() > 248:
+                    small_island_labels.add(li)
+        if small_island_labels:
+            bg_mask = bg_mask | np.isin(labels, list(small_island_labels))
     except ImportError:
-        # 没有 scipy → 用 BFS 自己实现
+        # 没有 scipy → BFS 实现,起点用所有边缘像素
         bg_mask = np.zeros((h, w), dtype=bool)
         from collections import deque
         queue: deque = deque()
-        for cy, cx in [(0, 0), (0, w - 1), (h - 1, 0), (h - 1, w - 1)]:
-            if white_mask[cy, cx] and not bg_mask[cy, cx]:
-                queue.append((cy, cx))
-                bg_mask[cy, cx] = True
+        # 顶边 + 底边
+        for x in range(w):
+            for y in (0, h - 1):
+                if white_mask[y, x] and not bg_mask[y, x]:
+                    queue.append((y, x))
+                    bg_mask[y, x] = True
+        # 左边 + 右边(排除已加的角)
+        for y in range(1, h - 1):
+            for x in (0, w - 1):
+                if white_mask[y, x] and not bg_mask[y, x]:
+                    queue.append((y, x))
+                    bg_mask[y, x] = True
         while queue:
             y, x = queue.popleft()
             for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
