@@ -56,9 +56,10 @@
 **Day 1 MVP 全部完成**:sim 引擎 + Godot 端实时显示 + 对话 + 反思 + 压缩。
 12 agent 真实活动 + 对话 + 跨日反思,论文级别的 emergent narrative。
 
-**2026-05-17 持续打磨 14 commit** 完成。详见
+**2026-05-17 持续打磨 16 commit** 完成。详见
 [HANDOFF_FOR_NEXT_SESSION.md](HANDOFF_FOR_NEXT_SESSION.md)。
-真实 API 验证缓存命中率 **92.9%**(无破坏 Layer 0/1 字节稳定)。
+真实 API 验证缓存命中率 **92.9%**(无破坏 Layer 0/1 字节稳定);
+DeepSeekClient 加运行时守卫,命中率 < 85% 时自动 log warning。
 
 ---
 
