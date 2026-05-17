@@ -25,6 +25,14 @@ var _agent_nodes: Dictionary = {}
 ## F2 玩家节点(每个 LocationView 一份,场所切换时随之销毁重建)
 var _player_node: Node2D = null
 
+## F2 hover/interaction 距离阈值 (px,设计稿 main-screen.jsx 第 11-13 行)
+const HOVER_RADIUS: float = 140.0
+const INTERACT_RADIUS: float = 110.0
+
+## F2 最近 NPC 的 agent_id(用于 BubbleMenu 锁定目标 + 单点 E-prompt)
+var _nearest_npc_id: String = ""
+var _nearest_npc_dist: float = 1e9
+
 @onready var bg_rect: ColorRect = $BackgroundRect
 @onready var bg_sprite: Sprite2D = $BackgroundSprite
 @onready var location_label: Label = $UILayer/LocationLabel
@@ -129,6 +137,49 @@ func _ensure_agent_node(agent_id: String) -> Node2D:
 	agents_container.add_child(node)
 	_agent_nodes[agent_id] = node
 	return node
+
+
+func _process(_delta: float) -> void:
+	"""F2: 每帧算玩家到各 AgentNode 距离 → 调度 hover whisper + E-prompt。
+	找最近 NPC,只在它身上显 E-prompt(避免多个 E 浮气泡重叠)。"""
+	if _player_node == null:
+		return
+	var player_pos: Vector2 = _player_node.position
+
+	_nearest_npc_id = ""
+	_nearest_npc_dist = 1e9
+
+	for aid in _agent_nodes:
+		var node: Node2D = _agent_nodes[aid]
+		if node == null or not is_instance_valid(node):
+			continue
+		var d: float = player_pos.distance_to(node.position)
+		# Hover whisper: 在 HOVER_RADIUS 内显示
+		if node.has_method("set_hover_whisper"):
+			node.set_hover_whisper(d < HOVER_RADIUS)
+		if d < _nearest_npc_dist:
+			_nearest_npc_dist = d
+			_nearest_npc_id = aid
+
+	# 只在"最近 NPC 且 < INTERACT_RADIUS"时显示 E-prompt
+	for aid in _agent_nodes:
+		var node2: Node2D = _agent_nodes[aid]
+		if node2 == null or not is_instance_valid(node2):
+			continue
+		if node2.has_method("set_e_prompt"):
+			var is_target: bool = (aid == _nearest_npc_id and _nearest_npc_dist < INTERACT_RADIUS)
+			node2.set_e_prompt(is_target)
+
+
+## F2D BubbleMenu 用:返回当前可互动的最近 NPC agent_id,无则空串。
+func get_interactable_npc_id() -> String:
+	if _nearest_npc_dist < INTERACT_RADIUS:
+		return _nearest_npc_id
+	return ""
+
+
+func get_player_node() -> Node2D:
+	return _player_node
 
 
 func _spawn_player_node() -> void:

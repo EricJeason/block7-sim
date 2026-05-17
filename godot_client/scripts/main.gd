@@ -20,6 +20,9 @@ const LocationLabel := preload("res://scripts/ui/location_label.gd")
 const KeyHints := preload("res://scripts/ui/key_hints.gd")
 const PausedChip := preload("res://scripts/ui/paused_chip.gd")
 
+# F2 BubbleMenu(E 互动气泡)
+const BubbleMenuScene := preload("res://scenes/ui/BubbleMenu.tscn")
+
 @onready var location_container: Node2D = $LocationContainer
 @onready var time_label: Label = $HUD/TimePanel/TimeLabel
 @onready var connection_dot: Label = $HUD/TimePanel/ConnectionDot
@@ -48,6 +51,9 @@ const PausedChip := preload("res://scripts/ui/paused_chip.gd")
 @onready var location_label: LocationLabel = $HUD/LocationLabel
 @onready var key_hints: KeyHints = $HUD/KeyHints
 @onready var paused_chip: PausedChip = $HUD/PausedChip
+
+# F2 BubbleMenu 单实例(挂在 HUD 上,弹出时锁玩家移动)
+var _bubble_menu: Control = null
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -259,6 +265,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# F1: Tab 切换暂停状态(等价旧 PauseButton)
 		get_viewport().set_input_as_handled()
 		BackendClient.set_sim_paused(not GameWorld.paused)
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_E and not event.echo:
+		# F2: E 互动 — 走近 NPC 弹气泡菜单(只在 INTERACT_RADIUS 内才响应)
+		get_viewport().set_input_as_handled()
+		_try_open_bubble_menu()
 
 
 # ------------------------------------------------------- HUD updates
@@ -528,3 +538,67 @@ func _fallback_en_name(location_id: String) -> String:
 		if s.length() > 0:
 			capitalized.append(s.substr(0, 1).to_upper() + s.substr(1))
 	return " ".join(capitalized)
+
+
+# ============================================================================
+# F2 E 互动:BubbleMenu 弹出 + 选项处理
+# ============================================================================
+
+func _try_open_bubble_menu() -> void:
+	"""按 E 时调用。查询当前 LocationView 是否有可互动 NPC,有则弹气泡菜单。"""
+	if _bubble_menu != null and is_instance_valid(_bubble_menu):
+		return  # 已有菜单
+	if _current_view == null or not _current_view.has_method("get_interactable_npc_id"):
+		return
+	var npc_id: String = _current_view.get_interactable_npc_id()
+	if npc_id == "":
+		return  # 没靠近任何 NPC
+
+	# 取 NPC 节点 + 名字
+	var npc_agent: Dictionary = GameWorld.get_agent(npc_id)
+	var npc_name: String = npc_agent.get("display_name", npc_id)
+	var npc_node: Node2D = _current_view.get_node_or_null("AgentsContainer/" + npc_id)
+	if npc_node == null:
+		return
+
+	# 实例化 BubbleMenu + 定位到 NPC 头顶
+	var menu = BubbleMenuScene.instantiate()
+	$HUD.add_child(menu)
+	menu.setup(npc_name)
+	# NPC.position 是 LocationView 内坐标(LocationContainer 在 0,0,直接当 viewport 坐标用)
+	menu.position = Vector2(npc_node.position.x - 70, npc_node.position.y - 250)
+	menu.option_chosen.connect(_on_bubble_option_chosen.bind(npc_id))
+	menu.cancelled.connect(_on_bubble_cancelled)
+	_bubble_menu = menu
+
+	# 锁住玩家移动
+	var player: Node = _current_view.get_player_node() if _current_view.has_method("get_player_node") else null
+	if player != null and player.has_method("set_move_blocked"):
+		player.set_move_blocked(true)
+
+
+func _on_bubble_option_chosen(action_id: String, npc_id: String) -> void:
+	"""玩家在气泡菜单选了某项。F2 stub 实装(LLM 接入到 v0.4)。"""
+	_bubble_menu = null
+	_unlock_player()
+	match action_id:
+		"greet":
+			# v0.4 → DialogueSession S11。F2 console 日志 stub。
+			print("[interact] 你向 %s 打招呼 (v0.4 解锁对话)" % npc_id)
+		"read_mind":
+			pass  # disabled,不应到达
+		"leave":
+			pass  # 直接关菜单
+
+
+func _on_bubble_cancelled() -> void:
+	_bubble_menu = null
+	_unlock_player()
+
+
+func _unlock_player() -> void:
+	if _current_view == null:
+		return
+	var player: Node = _current_view.get_player_node() if _current_view.has_method("get_player_node") else null
+	if player != null and player.has_method("set_move_blocked"):
+		player.set_move_blocked(false)
