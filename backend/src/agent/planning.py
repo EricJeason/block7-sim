@@ -261,7 +261,10 @@ _ACTION_VOCAB = """
 - rest(args.reason):休息/进餐/睡眠,duration 60-600 秒
 - observe(args.target):观察人或物,duration 10-30 秒
 - interact(args.target, args.action):与物品/工具互动,duration 30-120 秒
-- talk_to(args.agent_id, args.opening):主动与他人对话,duration 60 秒
+- talk_to(args.agent_id, args.opening):主动与他人对话,duration 60-90 秒。
+  ⚠ args.agent_id **必须**用 agent_xx 格式(如 agent_01、agent_06),
+  不要用中文名(如"林秋""千绫")。可参考你 persona 中
+  initial_relationships 里的 key 即正确的 agent_id。
 """
 
 DAILY_PLAN_TASK = """请为今天生成一份粗粒度日程。要求:

@@ -71,6 +71,12 @@ class PerceptionBroker:
         """
         self._apply_move_effect(actor, action)
 
+        # Block I:talk_to 提前在这里尝试触发,避免下面的 observers 为空 / 静默
+        # action 早 return 跳过对话触发(实测发现这正是 talk_to 无法启动对话的根因:
+        # 当 target 不在场所内时 observers 为空,直接 return [],对话永远启不起来)。
+        # 即使没有第三方观察者,talk_to 仍应该尝试启动 actor↔target 的双人对话。
+        self._maybe_trigger_dialogue(actor, action, all_agents, game_time)
+
         if action.action_type in _SILENT_ACTION_TYPES:
             return []
 
@@ -121,8 +127,6 @@ class PerceptionBroker:
                     exc,
                 )
 
-        # Block I:talk_to action 完成 → 尝试启动对话(在常规 observation 之外)
-        self._maybe_trigger_dialogue(actor, action, all_agents, game_time)
         return written
 
     # --------------------------------------------------------- dialogue trigger
@@ -141,13 +145,43 @@ class PerceptionBroker:
         if action.action_type != "talk_to" or self.dialogue_manager is None:
             return
         args = action.args if isinstance(action.args, dict) else {}
-        target_id = args.get("agent_id")
-        if not isinstance(target_id, str) or not target_id:
+        raw_target = args.get("agent_id")
+        if not isinstance(raw_target, str) or not raw_target:
             return
-        target = next((a for a in all_agents if a.agent_id == target_id), None)
+        # 把 all_agents 实体化为 list,既能按 agent_id 又能按 display_name 反查
+        agent_list = list(all_agents)
+        target = self._resolve_agent_by_id_or_name(raw_target, agent_list)
         if target is None:
+            logger.warning(
+                "[perception] talk_to target not found: %r (actor=%s)",
+                raw_target,
+                actor.agent_id,
+            )
             return
         self.dialogue_manager.try_start_session(actor, target, game_time)
+
+    def _resolve_agent_by_id_or_name(
+        self,
+        target_str: str,
+        all_agents: list[AgentRuntime],
+    ) -> AgentRuntime | None:
+        """先按 agent_id 精确匹配;失败则按 PersonaProfile.display_name 反查。
+
+        LLM 倾向输出中文名("林秋")而不是 ID("agent_01"),这里做兼容兜底。
+        """
+        for a in all_agents:
+            if a.agent_id == target_str:
+                return a
+        if self.persona_loader is None:
+            return None
+        for a in all_agents:
+            try:
+                persona = self.persona_loader.load(a.agent_id)
+            except Exception:  # noqa: BLE001
+                continue
+            if persona.display_name == target_str:
+                return a
+        return None
 
     # ------------------------------------------------------------ side effect
 
