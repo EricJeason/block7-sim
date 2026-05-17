@@ -83,7 +83,7 @@ vertical_alignment = 1
 [node name="NavLabel" type="Label" parent="HUD"]
 offset_left = 310.0
 offset_top = 18.0
-offset_right = 990.0
+offset_right = 960.0
 offset_bottom = 58.0
 text = "等待 /world 初始化..."
 horizontal_alignment = 1
@@ -94,7 +94,7 @@ theme_override_font_sizes/font_size = 16
 
 ; ---------------- 右侧上:Inspector(当前场所 agent 列表) ----------------
 [node name="Inspector" type="ColorRect" parent="HUD"]
-offset_left = 1000.0
+offset_left = 970.0
 offset_top = 10.0
 offset_right = 1270.0
 offset_bottom = 370.0
@@ -103,7 +103,7 @@ color = Color(0.06, 0.08, 0.12, 0.78)
 [node name="Title" type="Label" parent="HUD/Inspector"]
 offset_left = 12.0
 offset_top = 8.0
-offset_right = 258.0
+offset_right = 288.0
 offset_bottom = 38.0
 text = "等待..."
 theme_override_colors/font_color = Color(1, 0.95, 0.75, 1)
@@ -112,17 +112,17 @@ theme_override_font_sizes/font_size = 16
 [node name="Scroll" type="ScrollContainer" parent="HUD/Inspector"]
 offset_left = 6.0
 offset_top = 42.0
-offset_right = 264.0
+offset_right = 294.0
 offset_bottom = 356.0
 horizontal_scroll_mode = 0
 
 [node name="AgentList" type="VBoxContainer" parent="HUD/Inspector/Scroll"]
-custom_minimum_size = Vector2(250, 0)
+custom_minimum_size = Vector2(280, 0)
 
 ; ---------------- 右侧下:MemoryPanel(选中 agent 的记忆) ----------------
 [node name="MemoryPanel" type="ColorRect" parent="HUD"]
 visible = false
-offset_left = 1000.0
+offset_left = 970.0
 offset_top = 380.0
 offset_right = 1270.0
 offset_bottom = 710.0
@@ -131,7 +131,7 @@ color = Color(0.06, 0.08, 0.12, 0.85)
 [node name="Title" type="Label" parent="HUD/MemoryPanel"]
 offset_left = 12.0
 offset_top = 8.0
-offset_right = 258.0
+offset_right = 288.0
 offset_bottom = 38.0
 text = ""
 theme_override_colors/font_color = Color(0.95, 0.85, 0.55, 1)
@@ -140,7 +140,7 @@ theme_override_font_sizes/font_size = 14
 [node name="FilterBar" type="HBoxContainer" parent="HUD/MemoryPanel"]
 offset_left = 8.0
 offset_top = 38.0
-offset_right = 262.0
+offset_right = 292.0
 offset_bottom = 68.0
 theme_override_constants/separation = 4
 
@@ -172,7 +172,7 @@ theme_override_font_sizes/font_size = 12
 [node name="Content" type="RichTextLabel" parent="HUD/MemoryPanel"]
 offset_left = 12.0
 offset_top = 72.0
-offset_right = 258.0
+offset_right = 288.0
 offset_bottom = 322.0
 bbcode_enabled = true
 fit_content = false
