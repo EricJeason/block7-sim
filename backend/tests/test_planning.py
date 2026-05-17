@@ -460,3 +460,45 @@ async def test_planner_prompt_has_layer_0_and_1_in_system() -> None:
     assert daily_msgs[1]["role"] == "user"
     assert "【当前情境】" in daily_msgs[1]["content"]
     assert "【当前任务】" in daily_msgs[1]["content"]
+
+
+# ============================================================================
+#                    _robust_json_loads 容错(打磨 P1.2)
+# ============================================================================
+
+
+def test_robust_json_strict_passes() -> None:
+    """直接合法 JSON 走严格分支。"""
+    from src.agent.planning import _robust_json_loads
+    out = _robust_json_loads('{"slots": [{"a": 1}]}')
+    assert out == {"slots": [{"a": 1}]}
+
+
+def test_robust_json_strips_markdown_fence() -> None:
+    """LLM 偶尔输出 ```json ... ``` 包裹,需要剥离。"""
+    from src.agent.planning import _robust_json_loads
+    raw = '```json\n{"slots": [1, 2]}\n```'
+    out = _robust_json_loads(raw)
+    assert out == {"slots": [1, 2]}
+
+
+def test_robust_json_strips_trailing_comma() -> None:
+    """LLM 偶尔写 trailing comma(Python 风格),strict 会失败。"""
+    from src.agent.planning import _robust_json_loads
+    raw = '{"slots": [{"a": 1, "b": 2,},],}'
+    out = _robust_json_loads(raw)
+    assert out == {"slots": [{"a": 1, "b": 2}]}
+
+
+def test_robust_json_with_prefix_and_markdown() -> None:
+    """前面有解释文字 + markdown 包裹,组合容错。"""
+    from src.agent.planning import _robust_json_loads
+    raw = '好的,下面是 JSON:\n```json\n{"actions": []}\n```\n以上是输出。'
+    out = _robust_json_loads(raw)
+    assert out == {"actions": []}
+
+
+def test_robust_json_returns_none_on_garbage() -> None:
+    from src.agent.planning import _robust_json_loads
+    assert _robust_json_loads("完全没有 JSON 的一段话") is None
+    assert _robust_json_loads("{不闭合的 JSON") is None

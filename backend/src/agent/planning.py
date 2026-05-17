@@ -329,9 +329,51 @@ EMERGENCY_TASK = """突发事件:{event_summary}
 
 # JSON 抽取:取第一个 {...} 块
 _JSON_OBJECT_RE = re.compile(r"\{[\s\S]*\}")
+# Markdown 代码块包裹("```json ... ```")的剥离
+_MD_CODE_FENCE_RE = re.compile(r"^```(?:json|JSON)?\s*\n?|\n?```\s*$", re.MULTILINE)
+# 容错:JSON 内 trailing comma( `, }` 或 `, ]` )
+_TRAILING_COMMA_RE = re.compile(r",(\s*[}\]])")
 
 # Fallback 动作时长(秒)
 _FALLBACK_DURATION = 5.0
+
+
+def _robust_json_loads(raw_content: str) -> dict | list | None:
+    """容错 JSON 解析。
+
+    LLM 偶尔会:
+    - 用 markdown 代码块 ```json ... ``` 包裹输出
+    - 在末尾留 trailing comma `, }` (Python 风格)
+    - 加注释 / 解释段(_JSON_OBJECT_RE 已能跳过前后文)
+
+    依次尝试:
+    1. 直接 json.loads(raw match)
+    2. 剥离 markdown 后再 json.loads
+    3. 修掉 trailing comma 再 json.loads
+
+    任一成功返回结果;全部失败返回 None。
+    """
+    # 先剥离 markdown 包裹再找 {...}
+    cleaned = _MD_CODE_FENCE_RE.sub("", raw_content.strip()).strip()
+    match = _JSON_OBJECT_RE.search(cleaned)
+    if match is None:
+        return None
+    candidate = match.group(0)
+
+    # 尝试 1:严格 json.loads
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        pass
+
+    # 尝试 2:修掉 trailing comma
+    cleaned2 = _TRAILING_COMMA_RE.sub(r"\1", candidate)
+    try:
+        return json.loads(cleaned2)
+    except json.JSONDecodeError:
+        pass
+
+    return None
 
 
 def _format_location_options(
@@ -691,13 +733,8 @@ class LLMPlanner:
     # ----------------------------------------------------- LLM output parsing
 
     def _parse_daily_slots(self, raw_content: str) -> list[DailyPlanSlot]:
-        match = _JSON_OBJECT_RE.search(raw_content)
-        if match is None:
-            logger.warning("[planner] daily JSON not found: %r", raw_content[:200])
-            return []
-        try:
-            data = json.loads(match.group(0))
-        except json.JSONDecodeError:
+        data = _robust_json_loads(raw_content)
+        if data is None:
             logger.warning("[planner] daily JSON parse failed: %r", raw_content[:200])
             return []
         raw_slots = data.get("slots") if isinstance(data, dict) else None
@@ -724,13 +761,8 @@ class LLMPlanner:
         return slots
 
     def _parse_actions(self, raw_content: str) -> list[QueuedAction]:
-        match = _JSON_OBJECT_RE.search(raw_content)
-        if match is None:
-            logger.warning("[planner] action JSON not found: %r", raw_content[:200])
-            return []
-        try:
-            data = json.loads(match.group(0))
-        except json.JSONDecodeError:
+        data = _robust_json_loads(raw_content)
+        if data is None:
             logger.warning("[planner] action JSON parse failed: %r", raw_content[:200])
             return []
         raw_actions = data.get("actions") if isinstance(data, dict) else None

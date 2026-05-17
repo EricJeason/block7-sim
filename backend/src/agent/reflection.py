@@ -252,15 +252,16 @@ class ReflectionRunner:
         return f"{hour:02d}:{minute:02d}"
 
     def _parse_reflections(self, raw_content: str) -> list[tuple[str, int]]:
-        """解析 LLM 输出的 JSON {"reflections": [{"content":..., "importance":...}, ...]}"""
-        match = _JSON_OBJECT_RE.search(raw_content)
-        if match is None:
+        """解析 LLM 输出的 JSON {"reflections": [{"content":..., "importance":...}, ...]}
+
+        复用 planning._robust_json_loads:容错 markdown 包裹 + trailing comma。
+        """
+        # 延迟导入避免循环依赖
+        from src.agent.planning import _robust_json_loads
+        data = _robust_json_loads(raw_content)
+        if not isinstance(data, dict):
             return []
-        try:
-            data = json.loads(match.group(0))
-        except json.JSONDecodeError:
-            return []
-        raw_list = data.get("reflections") if isinstance(data, dict) else None
+        raw_list = data.get("reflections")
         if not isinstance(raw_list, list):
             return []
         out: list[tuple[str, int]] = []
