@@ -28,10 +28,15 @@ var _player_node: Node2D = null
 ## F2 hover/interaction 距离阈值 (px,设计稿 main-screen.jsx 第 11-13 行)
 const HOVER_RADIUS: float = 140.0
 const INTERACT_RADIUS: float = 110.0
+# Eric 反馈"工作状态弹窗有点短暂"→ 加滞后区:进 140 触发显示,出 240 才消失
+const HOVER_KEEP_RADIUS: float = 240.0
 
 ## F2 最近 NPC 的 agent_id(用于 BubbleMenu 锁定目标 + 单点 E-prompt)
 var _nearest_npc_id: String = ""
 var _nearest_npc_dist: float = 1e9
+
+## F2 hover 滞后状态: {agent_id: bool} 跟踪每 NPC 当前是否在 hover 显示中
+var _hover_state: Dictionary = {}
 
 @onready var bg_rect: ColorRect = $BackgroundRect
 @onready var bg_sprite: Sprite2D = $BackgroundSprite
@@ -154,9 +159,20 @@ func _process(_delta: float) -> void:
 		if node == null or not is_instance_valid(node):
 			continue
 		var d: float = player_pos.distance_to(node.position)
-		# Hover whisper: 在 HOVER_RADIUS 内显示
-		if node.has_method("set_hover_whisper"):
-			node.set_hover_whisper(d < HOVER_RADIUS)
+		# F2 Hover whisper 滞后(hysteresis):
+		# - 距离 <140 → 触发显示(状态=true)
+		# - 距离 >240 → 隐藏(状态=false)
+		# - 140-240 之间 → 保持上次状态(防止边缘距离玩家走开瞬间就消失)
+		var prev_hover: bool = _hover_state.get(aid, false)
+		var new_hover: bool = prev_hover
+		if d < HOVER_RADIUS:
+			new_hover = true
+		elif d > HOVER_KEEP_RADIUS:
+			new_hover = false
+		if new_hover != prev_hover:
+			_hover_state[aid] = new_hover
+			if node.has_method("set_hover_whisper"):
+				node.set_hover_whisper(new_hover)
 		if d < _nearest_npc_dist:
 			_nearest_npc_dist = d
 			_nearest_npc_id = aid

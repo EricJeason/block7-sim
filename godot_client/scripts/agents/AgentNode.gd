@@ -142,14 +142,15 @@ func on_thinking_completed(_appended_count: int) -> void:
 
 # ------------------------------------------------------- dialogue speech
 
-## 显示一句台词。时长按字数动态调整(每字 ~0.18s,最少 4 秒):
-##   30 字 → 5.4 秒,50 字 → 9 秒,80 字 → 14.4 秒
+## 显示一句台词。时长按字数动态调整(每字 ~0.27s,最少 6 秒):
+##   F2 后调整 1.5× 慢速,让玩家有时间读。
+##   30 字 → 8.1 秒,50 字 → 13.5 秒,80 字 → 21.6 秒
 ## 由 LocationView 接到 GameWorld.dialogue_line signal 后转发。
 func show_speech_line(text: String) -> void:
 	speech_label.text = text
 	speech_bubble.visible = true
 	# 按字数算阅读时间;中文字符按 1 字计算
-	var duration: float = max(4.0, float(text.length()) * 0.18)
+	var duration: float = max(6.0, float(text.length()) * 0.27)
 	var snapshot_text := text
 	var t := get_tree().create_timer(duration)
 	_speech_hide_timer = t

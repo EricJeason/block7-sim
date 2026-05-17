@@ -197,11 +197,12 @@ func _build_speech_bubble() -> void:
 
 func show_speech(text: String, duration: float = 0.0) -> void:
 	"""玩家头顶气泡说话,duration 秒后自动隐藏。
-	duration=0 用字数自适应(对照 AgentNode.show_speech_line:max(4, 字数×0.18))"""
+	duration=0 用字数自适应(对照 AgentNode.show_speech_line:max(6, 字数×0.27))
+	F2 后 1.5× 慢速,让玩家有时间读。"""
 	if _speech_panel == null:
 		return
 	if duration <= 0.0:
-		duration = max(3.0, float(text.length()) * 0.18)
+		duration = max(5.0, float(text.length()) * 0.27)
 	_speech_label.text = text
 	_speech_panel.visible = true
 	_speech_timer = get_tree().create_timer(duration)
