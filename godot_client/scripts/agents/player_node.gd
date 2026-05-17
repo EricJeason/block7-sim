@@ -3,6 +3,10 @@ extends Node2D
 # preload 保证不依赖 .godot/global_script_class_cache.cfg(被 .gitignore)
 const ChromeTheme := preload("res://scripts/ui/chrome_theme.gd")
 
+var _speech_panel: PanelContainer = null
+var _speech_label: Label = null
+var _speech_timer: SceneTreeTimer = null
+
 ## F2 玩家节点(扮演艾琳)— LocationView 实例化的唯一玩家可控角色。
 ##
 ## 视觉:艾琳 sprite + 头顶 "YOU" 标签 + 暖色 drop-shadow
@@ -27,7 +31,10 @@ var _move_blocked: bool = false  # F3 BubbleMenu 弹出时由外部置 true,锁�
 
 ## F2 边界切场所:玩家撞边界 + 推该方向键 N 秒后触发切场所
 var _boundary_press_time: float = 0.0
-const _BOUNDARY_TRIGGER_SEC: float = 0.35
+const _BOUNDARY_TRIGGER_SEC: float = 1.0
+# 边界提示浮气泡(动态创建)
+var _boundary_hint_panel: PanelContainer = null
+var _boundary_hint_label: Label = null
 
 
 func _ready() -> void:
@@ -47,6 +54,11 @@ func _ready() -> void:
 
 	# 玩家点击不响应(玩家自己不能对自己用 E)
 	mouse_filter_recursive(self)
+
+	# F2 边界提示浮气泡(羊皮纸 + 旧橡木墨边)
+	_build_boundary_hint()
+	# F2 打招呼气泡(玩家说"你好,XX"用)
+	_build_speech_bubble()
 
 
 func _process(delta: float) -> void:
@@ -108,20 +120,109 @@ func _check_boundary_transition(dx: float, dy: float, delta: float) -> void:
 	elif position.y >= BOUND_Y_MAX - 0.5 and dy > 0:
 		boundary_dir = "s"
 
+	# 不在边界 → 隐藏提示 + 重置计时
 	if boundary_dir == "":
 		_boundary_press_time = 0.0
+		_hide_boundary_hint()
 		return
 
+	# 查目标场所名
+	var target: String = _get_exit_target(boundary_dir)
+	if target == "":
+		# 该方向没有出口(如 plaza 西边酒馆未实装)
+		_boundary_press_time = 0.0
+		_show_boundary_hint("× 此方向暂无出口", 1.0)
+		return
+
+	# 显示边界提示("→ 寂塔遗迹  · 继续推 0.X 秒"),实时更新进度
 	_boundary_press_time += delta
-	if _boundary_press_time < _BOUNDARY_TRIGGER_SEC:
+	var remaining: float = max(0.0, _BOUNDARY_TRIGGER_SEC - _boundary_press_time)
+	var target_loc: Dictionary = GameWorld.get_location(target)
+	var target_name: String = target_loc.get("name", target)
+	if remaining > 0.0:
+		_show_boundary_hint(
+			"→ %s    · 继续推 %.1fs" % [target_name, remaining],
+			remaining / _BOUNDARY_TRIGGER_SEC
+		)
 		return
 
 	# 触发切场所
-	var target: String = _get_exit_target(boundary_dir)
-	if target != "":
-		print("[player] boundary %s → switch_view_to(%s)" % [boundary_dir, target])
-		GameWorld.switch_view_to(target)
+	print("[player] boundary %s → switch_view_to(%s)" % [boundary_dir, target])
+	_hide_boundary_hint()
+	GameWorld.switch_view_to(target)
 	_boundary_press_time = 0.0
+
+
+func _build_boundary_hint() -> void:
+	"""边界推方向键时浮现的提示气泡 — 显示目标场所 + 倒计时。"""
+	_boundary_hint_panel = PanelContainer.new()
+	_boundary_hint_panel.add_theme_stylebox_override("panel", ChromeTheme.make_parchment_floating(0.92))
+	_boundary_hint_panel.visible = false
+	_boundary_hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boundary_hint_panel.position = Vector2(-130, -220)  # 头顶上方,比 YOU 更高
+	_boundary_hint_panel.size = Vector2(260, 0)
+
+	_boundary_hint_label = Label.new()
+	_boundary_hint_label.add_theme_font_override("font", ChromeTheme.font_serif(600))
+	_boundary_hint_label.add_theme_font_size_override("font_size", 14)
+	_boundary_hint_label.add_theme_color_override("font_color", ChromeTheme.COLOR_DEEP_INK)
+	_boundary_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boundary_hint_panel.add_child(_boundary_hint_label)
+
+	add_child(_boundary_hint_panel)
+
+
+func _show_boundary_hint(text: String, _progress: float = 0.0) -> void:
+	if _boundary_hint_panel == null:
+		return
+	_boundary_hint_label.text = text
+	_boundary_hint_panel.visible = true
+
+
+func _hide_boundary_hint() -> void:
+	if _boundary_hint_panel != null:
+		_boundary_hint_panel.visible = false
+
+
+# ----------------------------------------------------- 玩家说话气泡
+
+func _build_speech_bubble() -> void:
+	"""玩家头顶说话气泡(对话 stub 用)。"""
+	_speech_panel = PanelContainer.new()
+	_speech_panel.add_theme_stylebox_override("panel", ChromeTheme.make_parchment_floating(0.92))
+	_speech_panel.visible = false
+	_speech_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_speech_panel.position = Vector2(-110, -180)
+	_speech_panel.size = Vector2(220, 0)
+
+	_speech_label = Label.new()
+	_speech_label.add_theme_font_override("font", ChromeTheme.font_serif(500))
+	_speech_label.add_theme_font_size_override("font_size", 14)
+	_speech_label.add_theme_color_override("font_color", ChromeTheme.COLOR_DEEP_INK)
+	_speech_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_speech_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_speech_panel.add_child(_speech_label)
+
+	add_child(_speech_panel)
+
+
+func show_speech(text: String, duration: float = 0.0) -> void:
+	"""玩家头顶气泡说话,duration 秒后自动隐藏。
+	duration=0 用字数自适应(对照 AgentNode.show_speech_line:max(4, 字数×0.18))"""
+	if _speech_panel == null:
+		return
+	if duration <= 0.0:
+		duration = max(3.0, float(text.length()) * 0.18)
+	_speech_label.text = text
+	_speech_panel.visible = true
+	_speech_timer = get_tree().create_timer(duration)
+	var snapshot := _speech_timer
+	var snapshot_text := text
+	snapshot.timeout.connect(func() -> void:
+		# 仅在没被新台词覆盖时才隐藏
+		if _speech_timer == snapshot and _speech_label.text == snapshot_text:
+			_speech_panel.visible = false
+	)
 
 
 func _get_exit_target(direction: String) -> String:

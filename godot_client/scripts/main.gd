@@ -595,12 +595,48 @@ func _on_bubble_option_chosen(action_id: String, npc_id: String) -> void:
 	_unlock_player()
 	match action_id:
 		"greet":
-			# v0.4 → DialogueSession S11。F2 console 日志 stub。
-			print("[interact] 你向 %s 打招呼 (v0.4 解锁对话)" % npc_id)
+			_stub_greet(npc_id)
 		"read_mind":
 			pass  # disabled,不应到达
 		"leave":
 			pass  # 直接关菜单
+
+
+func _stub_greet(npc_id: String) -> void:
+	"""F2 stub:玩家头顶气泡说"你好,XX",NPC 头顶气泡回应。
+	v0.4 会接入真正 LLM DialogueSession,这里只是占位。"""
+	if _current_view == null:
+		return
+	var npc_agent: Dictionary = GameWorld.get_agent(npc_id)
+	var npc_name: String = npc_agent.get("display_name", npc_id)
+	var player_agent: Dictionary = GameWorld.get_agent(GameWorld.player_agent_id)
+	var player_name: String = player_agent.get("display_name", "艾琳")
+
+	# 玩家说什么(F2 固定模板,F4 LLM)
+	var greet_lines: Array = ["你好,%s。" % npc_name, "嗨,%s。" % npc_name, "%s,在忙吗?" % npc_name]
+	var npc_lines: Array = [
+		"嗯,%s。你也来了。" % player_name,
+		"啊,%s。" % player_name,
+		"%s,有事吗?" % player_name,
+		"...你早。",
+	]
+	# 用 game_time 当伪随机种子,稳定但不同时刻不同
+	var seed_int: int = int(GameWorld.game_time) % 100
+	var player_line: String = greet_lines[seed_int % greet_lines.size()]
+	var npc_line: String = npc_lines[seed_int % npc_lines.size()]
+
+	# 玩家头顶气泡
+	var player_node: Node = _current_view.get_player_node() if _current_view.has_method("get_player_node") else null
+	if player_node != null and player_node.has_method("show_speech"):
+		player_node.show_speech(player_line)
+
+	# NPC 头顶气泡(等 0.6 秒玩家说完再说,简易对话节奏)
+	await get_tree().create_timer(0.6).timeout
+	var npc_node: Node = _current_view.get_node_or_null("AgentsContainer/" + npc_id)
+	if npc_node != null and npc_node.has_method("show_speech_line"):
+		npc_node.show_speech_line(npc_line)
+
+	print("[interact stub] %s → %s | %s → %s" % [player_name, player_line, npc_name, npc_line])
 
 
 func _on_bubble_cancelled() -> void:

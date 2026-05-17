@@ -32,13 +32,17 @@ var _name_label: Label
 var _panel: PanelContainer
 var _options_vbox: VBoxContainer
 var _option_rows: Array[HBoxContainer] = []
+# 防玩家按 E 弹菜单时同帧 E 又被 _input 接收触发"确认"(KEY_E 既弹也确认)
+var _just_opened: bool = true
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP  # 拦截鼠标,防穿透到下方场景
-	set_process_unhandled_input(true)
 	_build_ui()
 	_refresh_highlight()
+	# 100ms grace period:期间忽略键盘 input(只允许鼠标点击)
+	await get_tree().create_timer(0.1).timeout
+	_just_opened = false
 
 
 func setup(target_npc_name: String) -> void:
@@ -157,20 +161,28 @@ func _on_row_input(event: InputEvent, idx: int) -> void:
 			_refresh_highlight()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+## 改用 _input(比 _unhandled_input 更早,不依赖事件传播链),
+## 显式 set_input_as_handled() 防 main.gd KEY_E 处理重复响应。
+func _input(event: InputEvent) -> void:
+	if _just_opened:
+		return  # 100ms grace 期,忽略键盘
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	var key = event.keycode
-	if key == KEY_UP:
+	# 上一项:W / ↑
+	if key == KEY_UP or key == KEY_W:
 		get_viewport().set_input_as_handled()
 		_move_selection(-1)
-	elif key == KEY_DOWN:
+	# 下一项:S / ↓
+	elif key == KEY_DOWN or key == KEY_S:
 		get_viewport().set_input_as_handled()
 		_move_selection(1)
-	elif key == KEY_ENTER:
+	# 确认:Enter / Space / E(再按 E)
+	elif key == KEY_ENTER or key == KEY_KP_ENTER or key == KEY_SPACE or key == KEY_E:
 		get_viewport().set_input_as_handled()
 		_confirm()
-	elif key == KEY_ESCAPE:
+	# 取消:Esc / Q
+	elif key == KEY_ESCAPE or key == KEY_Q:
 		get_viewport().set_input_as_handled()
 		_cancel()
 
