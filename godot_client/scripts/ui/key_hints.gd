@@ -58,7 +58,7 @@ func _rebuild() -> void:
 		add_child(row)
 
 
-## 标准 v0.2 的 8 条 hint(C/I/J/P 在 v0.2 未实装,标 dim)
+## 标准 v0.2 的 hints(C/I/J/P 在 v0.2 未实装,标 dim)
 static func default_hints_v02(e_target_name: String = "") -> Array[Dictionary]:
 	var e_label: String
 	if e_target_name == "":
@@ -66,7 +66,10 @@ static func default_hints_v02(e_target_name: String = "") -> Array[Dictionary]:
 	else:
 		e_label = "与 %s 互动" % e_target_name
 	return [
+		{"key": "WASD", "label": "移动"},
 		{"key": "E", "label": e_label},
+		{"key": "Tab", "label": "暂停"},
+		{"key": "F11", "label": "全屏"},
 		{"key": "C", "label": "角色", "dim": true},
 		{"key": "I", "label": "背包", "dim": true},
 		{"key": "J", "label": "线索 / 任务", "dim": true},

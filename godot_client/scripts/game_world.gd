@@ -341,13 +341,17 @@ func is_player_agent(agent_id: String) -> bool:
 # ----------------------------------------------------- view location
 
 func switch_view_to(location_id: String) -> void:
-	"""玩家请求切到某场所。校验存在性,广播 location_switched。"""
+	"""玩家请求切到某场所。校验存在性,广播 location_switched。
+	F2: 切场所时玩家位置重置到新场所中央,朝向南(避免在新场所边界继续触发)。"""
 	if not locations.has(location_id):
 		push_warning("[game_world] unknown location: %s" % location_id)
 		return
 	if location_id == current_view_location:
 		return
 	current_view_location = location_id
+	player_x = 640.0
+	player_y = 540.0
+	player_facing = "s"
 	location_switched.emit(location_id)
 
 

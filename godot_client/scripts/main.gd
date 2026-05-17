@@ -269,6 +269,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		# F2: E 互动 — 走近 NPC 弹气泡菜单(只在 INTERACT_RADIUS 内才响应)
 		get_viewport().set_input_as_handled()
 		_try_open_bubble_menu()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_F11 and not event.echo:
+		# F2: F11 切全屏
+		get_viewport().set_input_as_handled()
+		_toggle_fullscreen()
+
+
+func _toggle_fullscreen() -> void:
+	var current: int = DisplayServer.window_get_mode()
+	if current == DisplayServer.WINDOW_MODE_FULLSCREEN or current == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
 # ------------------------------------------------------- HUD updates

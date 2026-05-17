@@ -19,6 +19,7 @@ centered = false
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="LocationLabel" type="Label" parent="UILayer"]
+visible = false
 offset_left = 40.0
 offset_top = 600.0
 offset_right = 600.0

@@ -25,6 +25,10 @@ const BOUND_Y_MAX: float = 680.0
 var _facing: String = "s"
 var _move_blocked: bool = false  # F3 BubbleMenu 弹出时由外部置 true,锁住移动
 
+## F2 边界切场所:玩家撞边界 + 推该方向键 N 秒后触发切场所
+var _boundary_press_time: float = 0.0
+const _BOUNDARY_TRIGGER_SEC: float = 0.35
+
 
 func _ready() -> void:
 	# 初始位置从 GameWorld(跨 LocationView 持久)
@@ -88,6 +92,55 @@ func _process(delta: float) -> void:
 	# z_index 跟 y 走(前后遮挡)
 	z_index = int(position.y) + 1
 
+	# F2 边界切场所:撞到边界 + 朝该方向继续推 → 累计 0.35 秒后切下一场所
+	_check_boundary_transition(dx, dy, delta)
+
+
+func _check_boundary_transition(dx: float, dy: float, delta: float) -> void:
+	"""玩家撞边界 + 仍朝该方向推 → 切到下一场所。"""
+	var boundary_dir: String = ""
+	if position.x <= BOUND_X_MIN + 0.5 and dx < 0:
+		boundary_dir = "w"
+	elif position.x >= BOUND_X_MAX - 0.5 and dx > 0:
+		boundary_dir = "e"
+	elif position.y <= BOUND_Y_MIN + 0.5 and dy < 0:
+		boundary_dir = "n"
+	elif position.y >= BOUND_Y_MAX - 0.5 and dy > 0:
+		boundary_dir = "s"
+
+	if boundary_dir == "":
+		_boundary_press_time = 0.0
+		return
+
+	_boundary_press_time += delta
+	if _boundary_press_time < _BOUNDARY_TRIGGER_SEC:
+		return
+
+	# 触发切场所
+	var target: String = _get_exit_target(boundary_dir)
+	if target != "":
+		print("[player] boundary %s → switch_view_to(%s)" % [boundary_dir, target])
+		GameWorld.switch_view_to(target)
+	_boundary_press_time = 0.0
+
+
+func _get_exit_target(direction: String) -> String:
+	"""按当前场所 + 方向决定出口目的地。
+	老松广场:N→北霜 / S→暖谷 / E→寂塔 / W→暂无(酒馆未实装)
+	其他场所:任意方向 → 回老松广场(adjacent_to 唯一)。"""
+	var loc_id: String = GameWorld.current_view_location
+	if loc_id == "lao_song_plaza":
+		match direction:
+			"n": return "north_frost_workshop"
+			"s": return "warm_valley_farm"
+			"e": return "silent_tower_ruins"
+			_:   return ""  # 西边酒馆未实装
+	# 其他 3 个场所:回 plaza
+	var adjacents: Array = GameWorld.get_location(loc_id).get("adjacent_to", [])
+	if adjacents.is_empty():
+		return ""
+	return adjacents[0]
+
 
 ## 切场所时由 LocationView 调用,跳过 WASD 处理一帧 + 重置位置
 func reset_to(x: float, y: float, facing: String = "s") -> void:
@@ -108,8 +161,15 @@ func _apply_facing_sprite() -> void:
 	var aid: String = GameWorld.player_agent_id
 	if aid == "":
 		aid = "agent_04"
+	# Eric 反馈:艾琳素材中 walk_e.png 实际是朝 W,walk_w.png 实际朝 E。
+	# 这里交换文件名映射,不动 _facing 内部状态(GameWorld.player_facing 仍正确)。
+	var sprite_dir: String = _facing
+	if _facing == "e":
+		sprite_dir = "w"
+	elif _facing == "w":
+		sprite_dir = "e"
 	var candidates := [
-		"res://assets/characters/%s/walk_%s.png" % [aid, _facing],
+		"res://assets/characters/%s/walk_%s.png" % [aid, sprite_dir],
 		"res://assets/characters/%s/idle.png" % aid,
 		"res://assets/characters/%s/walk_s.png" % aid,
 	]
