@@ -14,6 +14,12 @@ const LOCATION_SCENES := {
 	"silent_tower_ruins":    preload("res://scenes/locations/SilentTowerRuins.tscn"),
 }
 
+# F1 新 HUD 控件类型 preload(保证不依赖 .godot/ class_name cache)
+const WoodClock := preload("res://scripts/ui/wood_clock.gd")
+const LocationLabel := preload("res://scripts/ui/location_label.gd")
+const KeyHints := preload("res://scripts/ui/key_hints.gd")
+const PausedChip := preload("res://scripts/ui/paused_chip.gd")
+
 @onready var location_container: Node2D = $LocationContainer
 @onready var time_label: Label = $HUD/TimePanel/TimeLabel
 @onready var connection_dot: Label = $HUD/TimePanel/ConnectionDot
@@ -36,6 +42,12 @@ const LOCATION_SCENES := {
 @onready var btn_filter_observation: Button = $HUD/MemoryPanel/FilterBar/BtnObservation
 @onready var btn_filter_plan: Button = $HUD/MemoryPanel/FilterBar/BtnPlan
 @onready var cost_hint: Label = $HUD/PausePanel/CostHint
+
+# F1 新 HUD 控件(羊皮纸 / 木板风,设计稿 main-screen.jsx)
+@onready var wood_clock: WoodClock = $HUD/WoodClock
+@onready var location_label: LocationLabel = $HUD/LocationLabel
+@onready var key_hints: KeyHints = $HUD/KeyHints
+@onready var paused_chip: PausedChip = $HUD/PausedChip
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -76,11 +88,18 @@ func _ready() -> void:
 	_update_loading_overlay()
 	memory_panel.visible = false
 
+	# F1 新 HUD 初始化
+	_update_wood_clock()
+	_update_location_label()
+	key_hints.hints = KeyHints.default_hints_v02()
+	paused_chip.visible = false
+
 
 func _on_world_initialized(_world: Dictionary) -> void:
 	# 第一次或重连时灌入了 world,加载默认场所
 	_switch_location_view(GameWorld.current_view_location)
 	_refresh_inspector()
+	_update_location_label()
 	_update_loading_overlay()
 
 
@@ -88,6 +107,7 @@ func _on_location_switched(new_location_id: String) -> void:
 	_switch_location_view(new_location_id)
 	_refresh_inspector()
 	_clear_memory_panel()
+	_update_location_label()
 
 
 func _switch_location_view(location_id: String) -> void:
@@ -108,6 +128,7 @@ func _switch_location_view(location_id: String) -> void:
 
 func _on_sim_ticked(_game_time: float) -> void:
 	_update_time_label()
+	_update_wood_clock()
 
 
 func _on_connection_changed(connected: bool) -> void:
@@ -115,9 +136,10 @@ func _on_connection_changed(connected: bool) -> void:
 	_update_loading_overlay()
 
 
-func _on_paused_changed(_paused: bool) -> void:
+func _on_paused_changed(paused: bool) -> void:
 	_update_pause_button()
 	_update_loading_overlay()
+	paused_chip.visible = paused
 
 
 func _on_pause_button_pressed() -> void:
@@ -233,6 +255,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		GameWorld.switch_view_to("silent_tower_ruins")
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		_refresh_inspector()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_TAB and not event.echo:
+		# F1: Tab 切换暂停状态(等价旧 PauseButton)
+		get_viewport().set_input_as_handled()
+		BackendClient.set_sim_paused(not GameWorld.paused)
 
 
 # ------------------------------------------------------- HUD updates
@@ -443,3 +469,62 @@ func _format_memory_line(m: Dictionary) -> String:
 func _clear_memory_panel() -> void:
 	_selected_agent_id = ""
 	memory_panel.visible = false
+
+
+# ============================== F1 新 HUD 更新 ==============================
+
+## 把 GameWorld.game_time 映射到 WoodClock 的 day/hour/minute。
+## 预热期间显示 Day 1 / 00:00 占位。
+func _update_wood_clock() -> void:
+	if wood_clock == null:
+		return
+	if not GameWorld.is_warmup_complete():
+		wood_clock.day = 1
+		wood_clock.hour = 0
+		wood_clock.minute = 0
+		return
+	var gt: float = GameWorld.game_time
+	var seconds_per_day: float = 86400.0
+	var day: int = int(gt / seconds_per_day) + 1
+	var seconds_today: float = fmod(gt, seconds_per_day)
+	var hour: int = int(seconds_today / 3600.0)
+	var minute: int = int(fmod(seconds_today, 3600.0) / 60.0)
+	wood_clock.day = day
+	wood_clock.hour = hour
+	wood_clock.minute = minute
+
+
+## 更新左下场所标:中文 + 英文 + 在场人数。
+## 英文名 fallback:location_id underscore → space + 首字母大写。
+func _update_location_label() -> void:
+	if location_label == null:
+		return
+	var location_id: String = GameWorld.current_view_location
+	if location_id == "":
+		return
+	var loc: Dictionary = GameWorld.get_location(location_id)
+	var cn_name: String = loc.get("name", location_id)
+	var en_name: String = loc.get("name_en", _fallback_en_name(location_id))
+	var agents: Array = GameWorld.get_agents_in_location(location_id)
+	location_label.location_name = cn_name
+	location_label.location_name_en = en_name
+	location_label.count = agents.size()
+
+
+## v0.2 阶段右下 KeyHints:除 E 之外的 C/I/J/P/Q/F/Esc 都标 dim(待 v0.3+ 解锁)。
+## F2 阶段会根据"是否走近 NPC"动态把 E hint 改为"与 XX 互动"。
+func _update_key_hints(e_target_name: String = "") -> void:
+	if key_hints == null:
+		return
+	key_hints.hints = KeyHints.default_hints_v02(e_target_name)
+
+
+## 没有 name_en 字段时,从 location_id 推一个:lao_song_plaza → Lao Song Plaza
+func _fallback_en_name(location_id: String) -> String:
+	var parts: Array = location_id.split("_")
+	var capitalized: Array = []
+	for p in parts:
+		var s: String = p
+		if s.length() > 0:
+			capitalized.append(s.substr(0, 1).to_upper() + s.substr(1))
+	return " ".join(capitalized)

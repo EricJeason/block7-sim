@@ -1,7 +1,11 @@
-[gd_scene load_steps=3 format=3 uid="uid://b7sim_main"]
+[gd_scene load_steps=7 format=3 uid="uid://b7sim_main"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" uid="uid://b7sim_api_key_dialog" path="res://scenes/ApiKeyDialog.tscn" id="2_apikey"]
+[ext_resource type="PackedScene" uid="uid://b7sim_wood_clock" path="res://scenes/ui/WoodClock.tscn" id="3_wood_clock"]
+[ext_resource type="PackedScene" uid="uid://b7sim_location_label" path="res://scenes/ui/LocationLabel.tscn" id="4_location_label"]
+[ext_resource type="PackedScene" uid="uid://b7sim_key_hints" path="res://scenes/ui/KeyHints.tscn" id="5_key_hints"]
+[ext_resource type="PackedScene" uid="uid://b7sim_paused_chip" path="res://scenes/ui/PausedChip.tscn" id="6_paused_chip"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -10,8 +14,42 @@ script = ExtResource("1_main")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
-; ---------------- 左上:时钟 + 连接状态 ----------------
+; =================== F1: 新设计稿 HUD(羊皮纸 + 木板 + 极简) ===================
+
+; ---------------- 顶部中央:木板时钟(WoodClock 240×52,顶端 -4 嵌入) ----------------
+[node name="WoodClock" parent="HUD" instance=ExtResource("3_wood_clock")]
+offset_left = 520.0
+offset_top = -4.0
+offset_right = 760.0
+offset_bottom = 48.0
+
+; ---------------- 顶部居中下方:PAUSED chip(Tab 触发,默认隐藏) ----------------
+[node name="PausedChip" parent="HUD" instance=ExtResource("6_paused_chip")]
+offset_left = 580.0
+offset_top = 60.0
+offset_right = 700.0
+offset_bottom = 80.0
+
+; ---------------- 左下:场所标(LocationLabel,无背景浮于场景) ----------------
+[node name="LocationLabel" parent="HUD" instance=ExtResource("4_location_label")]
+offset_left = 32.0
+offset_top = 622.0
+offset_right = 400.0
+offset_bottom = 692.0
+
+; ---------------- 右下:键位提示(KeyHints,无背景,右对齐) ----------------
+[node name="KeyHints" parent="HUD" instance=ExtResource("5_key_hints")]
+offset_left = 1020.0
+offset_top = 460.0
+offset_right = 1248.0
+offset_bottom = 692.0
+grow_horizontal = 0
+
+; =================== F1: 旧 HUD panel 全部 visible=false(F2 验证后清理) ===================
+
+; ---------------- 左上:时钟 + 连接状态(已被 WoodClock 取代) ----------------
 [node name="TimePanel" type="ColorRect" parent="HUD"]
+visible = false
 offset_left = 10.0
 offset_top = 10.0
 offset_right = 290.0
@@ -36,8 +74,9 @@ text = "● 未连接"
 theme_override_colors/font_color = Color(0.95, 0.4, 0.4, 1)
 theme_override_font_sizes/font_size = 16
 
-; ---------------- TimePanel 下方:Block G 反思计数器 ----------------
+; ---------------- TimePanel 下方:反思计数器(F4 阶段进 F modal) ----------------
 [node name="ReflectionPanel" type="ColorRect" parent="HUD"]
+visible = false
 offset_left = 10.0
 offset_top = 100.0
 offset_right = 290.0
@@ -62,8 +101,9 @@ text = "💬 对话: 0 场"
 theme_override_colors/font_color = Color(0.78, 0.93, 0.85, 1)
 theme_override_font_sizes/font_size = 14
 
-; ---------------- 左下:Sim 暂停/恢复按钮(成本控制) ----------------
+; ---------------- 左下:暂停/恢复按钮(已被 Tab + PausedChip 取代) ----------------
 [node name="PausePanel" type="ColorRect" parent="HUD"]
+visible = false
 offset_left = 10.0
 offset_top = 630.0
 offset_right = 290.0
@@ -89,8 +129,9 @@ theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 vertical_alignment = 1
 
-; ---------------- 顶部:导航提示 ----------------
+; ---------------- 顶部:导航提示(已被 LocationLabel + KeyHints 取代) ----------------
 [node name="NavLabel" type="Label" parent="HUD"]
+visible = false
 offset_left = 310.0
 offset_top = 18.0
 offset_right = 960.0
@@ -102,8 +143,9 @@ theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 16
 
-; ---------------- 右侧上:Inspector(当前场所 agent 列表) ----------------
+; ---------------- 右侧上:Inspector(F2 阶段进 Q modal) ----------------
 [node name="Inspector" type="ColorRect" parent="HUD"]
+visible = false
 offset_left = 970.0
 offset_top = 10.0
 offset_right = 1270.0
@@ -129,7 +171,7 @@ horizontal_scroll_mode = 0
 [node name="AgentList" type="VBoxContainer" parent="HUD/Inspector/Scroll"]
 custom_minimum_size = Vector2(280, 0)
 
-; ---------------- 右侧下:MemoryPanel(选中 agent 的记忆) ----------------
+; ---------------- 右侧下:MemoryPanel(F4 阶段进 P 图鉴 / F 内心 modal) ----------------
 [node name="MemoryPanel" type="ColorRect" parent="HUD"]
 visible = false
 offset_left = 970.0
@@ -190,11 +232,11 @@ scroll_active = true
 theme_override_colors/default_color = Color(0.92, 0.92, 0.92, 1)
 theme_override_font_sizes/normal_font_size = 12
 
-; ---------------- 全屏 LoadingOverlay(等所有 agent 预热完成) ----------------
+; ---------------- LoadingOverlay(改 modal scrim 暗咖,F4 阶段加 parchment 中央 card) ----------------
 [node name="LoadingOverlay" type="ColorRect" parent="HUD"]
 offset_right = 1280.0
 offset_bottom = 720.0
-color = Color(0.04, 0.05, 0.08, 0.88)
+color = Color(0.102, 0.078, 0.063, 0.85)
 
 [node name="Title" type="Label" parent="HUD/LoadingOverlay"]
 offset_left = 0.0
@@ -204,7 +246,7 @@ offset_bottom = 340.0
 text = "⏳ 暮谷镇 · 加载中"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_colors/font_color = Color(1, 0.95, 0.78, 1)
+theme_override_colors/font_color = Color(0.925, 0.863, 0.757, 1)
 theme_override_font_sizes/font_size = 36
 
 [node name="Progress" type="Label" parent="HUD/LoadingOverlay"]
@@ -215,7 +257,7 @@ offset_bottom = 390.0
 text = "等待 backend 连接..."
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_colors/font_color = Color(0.78, 0.71, 0.58, 1)
 theme_override_font_sizes/font_size = 20
 
 [node name="Hint" type="Label" parent="HUD/LoadingOverlay"]
@@ -226,7 +268,7 @@ offset_bottom = 440.0
 text = "首轮 LLM 思考约 30-90 秒,所有 agent 准备好后自动进入。"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_colors/font_color = Color(0.65, 0.65, 0.72, 1)
+theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 1)
 theme_override_font_sizes/font_size = 14
 
 ; ----------- API key 弹窗(独立 CanvasLayer,layer=10 压在所有 HUD 之上)

@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_paused_chip"]
+
+[ext_resource type="Script" path="res://scripts/ui/paused_chip.gd" id="1_paused_chip"]
+
+[node name="PausedChip" type="PanelContainer"]
+script = ExtResource("1_paused_chip")
+
+[node name="Label" type="Label" parent="."]
+text = "·  P A U S E D  ·  T A B  ·"

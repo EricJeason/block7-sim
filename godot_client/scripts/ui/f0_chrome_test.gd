@@ -1,5 +1,8 @@
 extends Node2D
 
+# preload 保证不依赖 .godot/global_script_class_cache.cfg(被 .gitignore)
+const ChromeTheme := preload("res://scripts/ui/chrome_theme.gd")
+
 ## F0 视觉地基检查 — chrome StyleBox + 三组字体 + KeyCap 控件的最小可视化 demo。
 ##
 ## 用法:在 Godot 编辑器里打开 res://scenes/ui/F0_ChromeTest.tscn 然后 F6 单独运行。

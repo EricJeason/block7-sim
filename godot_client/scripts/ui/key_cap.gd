@@ -1,6 +1,9 @@
 class_name KeyCap
 extends PanelContainer
 
+# preload 保证不依赖 .godot/global_script_class_cache.cfg(被 .gitignore)
+const ChromeTheme := preload("res://scripts/ui/chrome_theme.gd")
+
 ## 单个键位提示控件 — 设计稿里 BubbleMenu / KeyHints / E-prompt 复用的最小积木。
 ##
 ## 视觉:半透明羊皮纸底 + 1px 旧橡木墨边 + IBM Plex Mono 10px SemiBold 居中。
