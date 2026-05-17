@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_inner_heart"]
+
+[ext_resource type="Script" path="res://scripts/ui/inner_heart.gd" id="1_inner_heart"]
+
+[node name="InnerHeart" type="Control"]
+script = ExtResource("1_inner_heart")

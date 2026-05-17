@@ -28,6 +28,9 @@ const BubbleMenuScene := preload("res://scenes/ui/BubbleMenu.tscn")
 const LocationCardScene := preload("res://scenes/ui/LocationCard.tscn")
 const SystemMenuScene := preload("res://scenes/ui/SystemMenu.tscn")
 
+# F4.2 modal scenes
+const InnerHeartScene := preload("res://scenes/ui/InnerHeart.tscn")
+
 @onready var location_container: Node2D = $LocationContainer
 @onready var time_label: Label = $HUD/TimePanel/TimeLabel
 @onready var connection_dot: Label = $HUD/TimePanel/ConnectionDot
@@ -67,6 +70,9 @@ var _boundary_hint_label: Label = null
 # F3 modal 单实例(同时只允许一个 modal,Q/Esc 互斥)
 var _location_card: Control = null
 var _system_menu: Control = null
+
+# F4.2 InnerHeart modal
+var _inner_heart: Control = null
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -301,6 +307,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# F3: Esc 系统菜单
 		get_viewport().set_input_as_handled()
 		_toggle_system_menu()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_F and not event.echo:
+		# F4.2: F 读自己的心
+		get_viewport().set_input_as_handled()
+		_toggle_inner_heart()
 
 
 func _toggle_fullscreen() -> void:
@@ -778,3 +788,51 @@ func _lock_player() -> void:
 	var player: Node = _current_view.get_player_node() if _current_view.has_method("get_player_node") else null
 	if player != null and player.has_method("set_move_blocked"):
 		player.set_move_blocked(true)
+
+
+# ============================================================================
+# F4.2 F 读自己的心
+# ============================================================================
+
+func _toggle_inner_heart() -> void:
+	"""按 F 切换 InnerHeart modal。已显示则关闭;否则拉玩家 reflections 后弹出。"""
+	if _inner_heart != null and is_instance_valid(_inner_heart):
+		_inner_heart.queue_free()
+		_inner_heart = null
+		_unlock_player()
+		return
+
+	# 关闭其他 modal
+	if _location_card != null and is_instance_valid(_location_card):
+		_location_card.queue_free()
+		_location_card = null
+	if _system_menu != null and is_instance_valid(_system_menu):
+		_system_menu.queue_free()
+		_system_menu = null
+
+	# 立即弹出(空 reflections 显示 placeholder),后台拉数据
+	var modal = InnerHeartScene.instantiate()
+	$HUD.add_child(modal)
+	var player_agent: Dictionary = GameWorld.get_agent(GameWorld.player_agent_id)
+	var player_name: String = player_agent.get("display_name", "我")
+	modal.setup(player_name, [])  # 空 reflections 显示 placeholder
+	modal.closed.connect(func() -> void:
+		_inner_heart = null
+		_unlock_player()
+	)
+	_inner_heart = modal
+	_lock_player()
+
+	# 后台拉真实 reflections
+	BackendClient.fetch_agent_memories(
+		GameWorld.player_agent_id, 10,
+		func(memories: Array) -> void:
+			if _inner_heart == null or not is_instance_valid(_inner_heart):
+				return
+			# 过滤只要 reflection
+			var reflections: Array = []
+			for m in memories:
+				if m.get("memory_type", "") == "reflection":
+					reflections.append(m)
+			_inner_heart.setup(player_name, reflections)
+	)
