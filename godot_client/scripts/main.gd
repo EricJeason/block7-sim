@@ -652,43 +652,40 @@ func _try_open_bubble_menu() -> void:
 
 
 func _on_bubble_option_chosen(action_id: String, npc_id: String) -> void:
-	"""玩家在气泡菜单选了某项。F2 stub 实装(LLM 接入到 v0.4)。"""
+	"""F4.4: BubbleMenu 选项升级为 3 句具体打招呼 + 读心 + 离开。
+	玩家选哪句就发哪句到后端,NPC LLM 据此生成回复。"""
 	_bubble_menu = null
 	_unlock_player()
-	match action_id:
-		"greet":
-			_stub_greet(npc_id)
-		"read_mind":
-			pass  # disabled,不应到达
-		"leave":
-			pass  # 直接关菜单
+	if action_id.begins_with("greet_"):
+		_player_greet(npc_id, action_id)
+	# read_mind / leave / 其他:直接关闭(read_mind 是 disabled,leave 是退出)
 
 
-func _stub_greet(npc_id: String) -> void:
-	"""F4.1 玩家打招呼 — 调 backend /dialogue/player_greet:
-	- 玩家说什么:Godot 端固定 3 句备选(seed 由 game_time)
-	- NPC 回复:**真 LLM 生成**(DialogueManager.try_start_player_session)
-	- 双方气泡通过 WS dialogue_line 事件流推回前端显示
-	"""
+func _player_greet(npc_id: String, action_id: String) -> void:
+	"""F4.4 玩家选了某句开场白 → 调后端 LLM player_greet。"""
 	if _current_view == null:
 		return
 	var npc_agent: Dictionary = GameWorld.get_agent(npc_id)
 	var npc_name: String = npc_agent.get("display_name", npc_id)
-
-	# 玩家说什么(F4.1 仍是 3 句固定备选,v0.4 全屏对话 modal 加自由输入)
-	var greet_lines: Array = [
-		"你好,%s。" % npc_name,
-		"嗨,%s。" % npc_name,
-		"%s,在忙吗?" % npc_name,
-	]
-	var seed_int: int = int(GameWorld.game_time) % 100
-	var player_line: String = greet_lines[seed_int % greet_lines.size()]
-
-	# 后台调 LLM,WS 推回 dialogue_line 由 _on_player_dialogue_line / LocationView 渲染
+	# 把 BubbleMenu 选项 id 映射回完整中文句(含 NPC 名)
+	var line_map: Dictionary = {
+		"greet_hello": "你好,%s。" % npc_name,
+		"greet_hi":    "嗨,%s。" % npc_name,
+		"greet_busy":  "%s,在忙吗?" % npc_name,
+	}
+	var player_line: String = line_map.get(action_id, "你好。")
 	BackendClient.player_greet(npc_id, player_line, func(ok: bool, _sid: String) -> void:
 		if not ok:
 			push_warning("[interact] player_greet failed for %s" % npc_id)
 	)
+
+
+# F4.1 _stub_greet 已被 F4.4 _player_greet 取代(玩家自选 3 句,不再随机)。
+# 旧函数保留作为快捷调用入口,转发到 _player_greet(随机选一句)。
+func _stub_greet(npc_id: String) -> void:
+	var ids := ["greet_hello", "greet_hi", "greet_busy"]
+	var seed_int: int = int(GameWorld.game_time) % 100
+	_player_greet(npc_id, ids[seed_int % ids.size()])
 
 
 func _on_dialogue_line_for_player(_session_id: String, speaker_id: String, text: String, _turn_idx: int) -> void:

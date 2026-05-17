@@ -19,11 +19,17 @@ const ChromeTheme := preload("res://scripts/ui/chrome_theme.gd")
 signal option_chosen(action_id: String)
 signal cancelled
 
-const OPTIONS: Array = [
-	{"id": "greet",     "label": "打招呼"},
-	{"id": "read_mind", "label": "读心", "cost": "× 限 1", "disabled": true},  # v0.4 解锁
-	{"id": "leave",     "label": "离开"},
+# F4.4 默认选项(已升级:3 句打招呼让玩家自选,而非随机)
+const DEFAULT_OPTIONS: Array = [
+	{"id": "greet_hello",   "label": "你好。"},
+	{"id": "greet_hi",      "label": "嗨。"},
+	{"id": "greet_busy",    "label": "在忙吗?"},
+	{"id": "read_mind",     "label": "读心", "cost": "× 限 1", "disabled": true},  # v0.4 解锁
+	{"id": "leave",         "label": "离开"},
 ]
+
+# 实际渲染的选项(可被 setup_options 覆盖)
+var options: Array = DEFAULT_OPTIONS.duplicate(true)
 
 var npc_name: String = ""
 var selected_index: int = 0
@@ -79,8 +85,8 @@ func _build_ui() -> void:
 	_panel.add_child(_options_vbox)
 
 	# 3 选项行
-	for i in range(OPTIONS.size()):
-		var opt: Dictionary = OPTIONS[i]
+	for i in range(options.size()):
+		var opt: Dictionary = options[i]
 		var row := _make_option_row(opt, i)
 		_option_rows.append(row)
 		_options_vbox.add_child(row)
@@ -190,16 +196,16 @@ func _input(event: InputEvent) -> void:
 func _move_selection(delta: int) -> void:
 	var new_idx: int = selected_index + delta
 	# 跳过 disabled
-	while new_idx >= 0 and new_idx < OPTIONS.size() and OPTIONS[new_idx].get("disabled", false):
+	while new_idx >= 0 and new_idx < options.size() and options[new_idx].get("disabled", false):
 		new_idx += delta
-	if new_idx < 0 or new_idx >= OPTIONS.size():
+	if new_idx < 0 or new_idx >= options.size():
 		return
 	selected_index = new_idx
 	_refresh_highlight()
 
 
 func _confirm() -> void:
-	var opt: Dictionary = OPTIONS[selected_index]
+	var opt: Dictionary = options[selected_index]
 	if opt.get("disabled", false):
 		return  # 不响应
 	var action_id: String = opt.get("id", "")
