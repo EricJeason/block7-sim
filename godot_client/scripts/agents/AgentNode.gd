@@ -18,6 +18,7 @@ extends Node2D
 @onready var thinking_indicator: Label = $ThinkingIndicator
 @onready var speech_bubble: PanelContainer = $SpeechBubble
 @onready var speech_label: Label = $SpeechBubble/SpeechLabel
+@onready var click_area: Area2D = $ClickArea
 
 var _has_sprite: bool = false
 var _speech_hide_timer: SceneTreeTimer = null
@@ -30,6 +31,15 @@ func _ready() -> void:
 
 	_apply_persona_visuals()
 	_apply_initial_action_label()
+	# 点击 sprite/色块 → 触发 GameWorld.agent_clicked,main.gd 据此弹 memory 面板
+	click_area.input_event.connect(_on_click_area_input)
+
+
+func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			GameWorld.agent_clicked.emit(agent_id)
 
 
 func _apply_persona_visuals() -> void:

@@ -61,6 +61,9 @@ signal warmup_progress(ready_count: int, total: int)
 signal daily_reflection_started(game_day: int, agent_count: int)
 signal daily_reflection_completed(game_day: int, reflection_count: int, merged_count: int, archived_count: int, cost_yuan: float)
 
+## 玩家点 AgentNode sprite/色块时触发(LocationView 转发)
+signal agent_clicked(agent_id: String)
+
 # ----------------------------------------------------------------- state
 
 ## locations[location_id] = { id, name, type, description, open_hours, adjacent_to[] }

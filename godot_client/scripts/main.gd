@@ -62,6 +62,7 @@ func _ready() -> void:
 	GameWorld.warmup_progress.connect(_on_warmup_progress)
 	GameWorld.daily_reflection_started.connect(_on_daily_reflection_started)
 	GameWorld.daily_reflection_completed.connect(_on_daily_reflection_completed)
+	GameWorld.agent_clicked.connect(_show_agent_memories)  # 点 sprite 直接弹 memory
 	pause_button.pressed.connect(_on_pause_button_pressed)
 	btn_filter_all.pressed.connect(func() -> void: _set_memory_filter("all"))
 	btn_filter_reflection.pressed.connect(func() -> void: _set_memory_filter("reflection"))
