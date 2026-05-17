@@ -1,215 +1,183 @@
-# 11 个 NPC portrait ChatGPT 生成提示词
+# 11 个 NPC portrait 中文提示词
 
-> **目标**:256×256 像素 anime-pixel bust shot(胸像),透明或纯色背景,用于 F4.4 DialogueSession modal + 后续 C 角色面板 / P 图鉴。
-> **来源**:`backend/data/personas/agent_XX.yaml` 的 `appearance` 字段。
-> **风格统一**:Granblue Fantasy x Stardew Valley anime-pixel,暮谷镇暮黄/苔绿/旧橡木墨调色,悬疑生活流氛围。
+> **目标**:256×256 像素 anime-pixel bust shot(胸像 / 头肩),透明背景,F4.4 对话 modal + C 角色面板 / P 图鉴用。
+> **来源**:`backend/data/personas/agent_XX.yaml` 的 `appearance` + `identity` + `traits`。
+> **使用**:复制下面的中文 prompt 给 ChatGPT(GPT-Image-1)/ DALL·E / 国内 AI(豆包 / 通义 / Imagen)。
+> **复用艾琳样图**:加一句"和艾琳[agent_04]的画风一致"作锚点(已实测艾琳 sprite + portrait 已抠好背景)。
 
 ---
 
-## 通用 prompt prefix(每张都加在前面)
+## ✨ 通用风格 prefix(每张都用这个开头)
 
-**中文**:
-> Anime 像素艺术胸像,256×256,Granblue Fantasy 像素版 + Stardew Valley 调色,
-> 暮黄 / 苔绿 / 旧橡木墨 muted 色调,柔和暖光,**透明背景**(transparent PNG)。
-> 氛围:悬疑生活流 + 循环 horror,人物表情下藏着秘密但不张扬。
-> 不要边框,不要文字,不要 logo。
-
-**英文**(给 ChatGPT/DALL·E 用):
-> Anime-pixel art bust portrait, 256x256 pixels, in the style of Granblue Fantasy
-> pixel art and Stardew Valley palette. Muted ochre/sage/oak-ink tones, soft warm
-> lighting. Quiet unease mood (horror/slice-of-life game). **Transparent background
-> (PNG)**. No border, no text, no logo.
+```
+anime 像素艺术胸像,256×256,Granblue Fantasy 风格遇 Stardew Valley 调色板,
+柔和暖光,muted 暮黄 / 苔绿 / 旧橡木墨色调。
+氛围:悬疑生活流 + 循环 horror 游戏,人物表情下藏着秘密但不张扬,
+不要"明亮可爱"的少女漫风。
+**透明背景**(transparent PNG),无边框,无文字,无 logo,角色居中。
+```
 
 ---
 
 ## 1. 林秋(agent_01)村医 · 32 岁女 · **治愈者**
 
-**核心特征**:黑色长直发松束脑后 / 浅蓝工作服 + 围裙 / 袖口药渍 / 眼神专注 / 修长手指有薄茧
+> anime 像素胸像,32 岁女村医林秋。身高 160cm,**黑色长直发松松束在脑后**,
+> 黑发偶有几根白丝。穿**浅蓝色工作服 + 围裙**,**袖口有药渍**。
+> **修长手指因长年研磨药材有薄茧**,可手持小药钵或一把草药。
+> 眼神**专注、温和但带疲惫**,看人像在仔细打量。表情压抑住的焦虑。
+> 浅羊皮纸暖色背景或纯透明。Granblue Fantasy 像素 anime 风。
 
-**英文 prompt**(直接复制):
-```
-[通用 prefix] +
-Lin Qiu, 32-year-old Chinese village herbalist doctor. Black straight long hair
-loosely tied behind her head. Wearing pale blue work robe with apron, herb-stained
-sleeve cuffs. Slender fingers with thin calluses. Focused, gentle gaze. Holding a
-small mortar or herb bundle. Hidden weariness in her eyes. Off-white parchment
-background. Anime-pixel bust shot.
-```
+**关键 keyword**:黑色长直发、浅蓝工作服、药渍袖口、修长手指、专注温和、研磨药材
 
 ---
 
 ## 2. 阿杏(agent_02)解药学徒 · 24 岁女 · **治愈者**
 
-**核心特征**:圆脸 / 齐肩短发用发带束 / 大眼睛带黑眼圈 / 浅黄短袍工作服 / **手腕内侧 3 道淡痕**(感染印记)
+> anime 像素胸像,24 岁年轻女学徒阿杏(林秋的徒弟)。身高 155cm,
+> **圆脸、大眼睛但带淡淡黑眼圈**。**黑色齐肩短发用简单发带束着**。
+> 穿**浅黄色短袍工作服**。**手腕内侧有三道淡淡月牙状痕**(只在月光下微微发光)。
+> 表情**开朗但带不安**,像在压抑什么没说的事。
+> 透明背景。anime-pixel 风格,Granblue Fantasy 像素感。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-A-xing, 24-year-old young Chinese herbalist apprentice. Round face, shoulder-length
-black hair held by a simple hairband. Bright big eyes but with faint dark circles.
-Wearing pale yellow short work robe. Cheerful but slightly anxious expression.
-Lighting hint: three pale crescent marks on her inner wrist faintly glowing.
-Off-white parchment background. Anime-pixel bust shot.
-```
+**关键 keyword**:圆脸、黑眼圈、齐肩短发、浅黄短袍、手腕三痕、开朗带不安
 
 ---
 
 ## 3. 早纪(agent_03)协会驻村员 · 28 岁女
 
-**核心特征**:日本血统 / 略苍白皮肤 / 黑色长发用簪子盘起 / 半框眼镜 / 深蓝长袍裙 + 协会徽章 / 手持皮质笔记本
+> anime 像素胸像,28 岁日本血统女研究员早纪。身高 165cm,**皮肤略苍白**(熬夜)。
+> **黑色长发用木簪盘起**。戴**半框眼镜**。穿**深蓝色长袍裙制服**,
+> **左胸有一枚小协会徽章**。**手持一本皮质笔记本**。
+> 表情**克制、观察力强**,有考据派学者的气质,笑容罕见但温暖。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Saki, 28-year-old Japanese-blooded researcher (Pioneer Society liaison). Slightly
-pale skin (from long nights). Long black hair pinned up with a kanzashi.
-Half-frame glasses. Wearing a simplified dark blue Society robe-dress with a small
-emblem on the left chest. Holding a leather-bound notebook. Composed, observant
-expression. Off-white parchment background. Anime-pixel bust shot.
-```
+**关键 keyword**:日本血统、苍白皮肤、簪子盘发、半框眼镜、深蓝制服、皮质笔记本
 
 ---
 
 ## 5. 沈砚(agent_05)村长 · 55 岁男
 
-**核心特征**:中等偏瘦 / 鬓角花白 / 深灰长褂 / **腰挂一串旧钥匙**(几把已无对应锁) / 关节粗大但稳定 / 疲惫又锐利的眼神
+> anime 像素胸像,55 岁男村长沈砚。身高 175cm,**中等偏瘦,鬓角花白**。
+> 穿**深灰色长褂**。**腰间挂一串旧钥匙**(其中几把锁早已不在)。
+> **手指关节粗大但稳定**。**眼神疲惫但仍锐利**,扛过 30 年秘密的人。
+> 微微的躬背,沉稳老派的气质。透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Shen Yan, 55-year-old Chinese village chief. Lean build, graying temples.
-Wearing a dark gray long robe. A bundle of old keys hangs at his waist (some keys
-no longer have locks). Large but steady knuckles. Tired yet sharp gaze, carries
-thirty years of secrets. Slight stoop. Off-white parchment background. Anime-pixel
-bust shot.
-```
+**关键 keyword**:鬓角花白、深灰长褂、腰挂旧钥匙串、关节粗大、疲惫锐利眼神、30 年负重
 
 ---
 
 ## 6. 千绫(agent_06)捕魔队长 · 35 岁女
 
-**核心特征**:东亚血统 / 黑发短马尾 / 深蓝作战服 + 皮护肩 / **腰挂短刀 + 捕魔符** / 左眼角隐约疤 / 锐利眼神(看林秋时会软下来)
+> anime 像素胸像,35 岁东亚血统女捕魔队长千绫(退伍军人)。身高 168cm,身姿干练。
+> **黑色短马尾**,纪律严明的姿势。穿**深蓝色作战服 + 皮革护肩**。
+> **腰挂一柄短刀 + 几枚捕魔符**。**左眼角有一道不显眼的疤**。
+> 眼神**锐利严苛**,但藏着不擅表达的柔软(暗恋林秋)。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Qian Ling, 35-year-old East Asian female monster-hunting captain (retired military).
-Black hair in a short ponytail, disciplined posture. Wearing dark navy combat
-uniform with leather shoulder guard. A short sword and a few demon-warding talismans
-at her belt. A subtle scar near her left eye. Sharp, intense gaze with a hidden
-softness. Off-white parchment background. Anime-pixel bust shot.
-```
+**关键 keyword**:东亚血统、黑色短马尾、深蓝作战服、皮护肩、短刀、捕魔符、左眼角疤、锐利
 
 ---
 
 ## 7. 苏拂(agent_07)酒馆主 · 40 岁女
 
-**核心特征**:中等身材偏丰腴 / 栗色长发松挽 + **银簪** / 深红或暗紫长袍 / 袖口卷到肘 / 圆亮眼睛 / 笑容有感染力 / 双手粗糙但快
+> anime 像素胸像,40 岁中国女酒馆老板苏拂。**中等偏丰腴的身材**。
+> **栗色长发松松挽起,簪一支银簪**。穿**深红或暗紫色长袍,袖口卷到肘部**。
+> **圆而亮的眼睛,笑容很有感染力**。**双手粗糙但快**,可手持酒杯或抹布。
+> 表情**嘴碎心软**,村里信息中心的样子,听人说话时微微歪头。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Su Fu, 40-year-old Chinese tavern owner. Plump middle-aged woman with chestnut
-brown long hair loosely tied with a silver hairpin. Wearing a deep crimson or
-dark purple long robe with sleeves rolled to elbows. Round bright eyes, warm
-infectious smile. Hands rough but quick. Holding a wine cup or wiping a glass.
-Off-white parchment background. Anime-pixel bust shot.
-```
+**关键 keyword**:丰腴、栗色长发、银簪、深红长袍、卷袖、圆亮眼、感染力笑容、嘴碎心软
 
 ---
 
 ## 8. 马九(agent_08)跑商 · 38 岁男
 
-**核心特征**:风吹日晒偏黑糙肤 / 鬓角灰 / 深褐长袍 + 皮腰带 + 小皮囊 / 没刮干净的胡茬 / 细长灵活的眼睛
+> anime 像素胸像,38 岁中国男跑商马九。身高 172cm。
+> **皮肤被风吹得偏黑偏糙,鬓角有些灰**。**胡茬总没刮干净**。
+> 穿**耐磨的深褐色长袍 + 皮腰带**。**腰带上挂一只磨得发亮的小皮囊**。
+> **细长但灵活的眼睛**,带点狡黠但不坏的微笑。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Ma Jiu, 38-year-old Chinese traveling merchant. Sun-weathered tan skin, slight
-gray at temples. Stubbled chin. Wearing a sturdy dark brown long robe with leather
-belt. A small worn leather pouch hangs at his belt. Narrow, lively, calculating
-eyes. Slight roguish smile. Off-white parchment background. Anime-pixel bust shot.
-```
+**关键 keyword**:黑糙肤、鬓角灰、胡茬、深褐长袍、皮腰带、皮囊、细长眼睛、油滑
 
 ---
 
 ## 9. 田柱(agent_09)铁匠 · 50 岁男
 
-**核心特征**:结实体格 / **双臂打铁烫疤** / 剃光头 + 浓密黑胡子 / 深棕厚围裙 / 颈挂粗皮绳护身符(亡妻遗物) / 指甲缝永远是炭灰
+> anime 像素胸像,50 岁中国男铁匠田柱。**结实粗壮的体格**。
+> **双臂有多处打铁留下的烫疤**。**剃光头但留浓密黑胡子**。
+> 穿**厚重的深棕色皮围裙**。**脖子上挂一根粗皮绳系着的小护身符**(亡妻遗物)。
+> **指甲缝永远是炭灰**。表情**豪放粗中有细**,30 年压抑的样子。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Tian Zhu, 50-year-old Chinese blacksmith. Burly muscular build, both arms scarred
-from years of forging. Shaved head with thick black beard. Wearing a heavy dark
-brown leather apron. A small amulet on a thick leather cord around his neck (his
-late wife's keepsake). Soot-stained fingernails. Gruff but kind expression.
-Off-white parchment background. Anime-pixel bust shot.
-```
+**关键 keyword**:结实、烫疤双臂、光头、浓密黑胡子、深棕皮围裙、皮绳护身符、炭灰指甲
 
 ---
 
 ## 10. 文姐(agent_10)农场主 · 45 岁女 · 林秋闺蜜
 
-**核心特征**:南方湿热血统 / 麦色圆脸 / 黑长发用深绿头巾包 / 深绿短袍 + 工作裤 / 手指带泥但干净 / **颈挂磨滑的小石头吊坠**(亡子玩具)
+> anime 像素胸像,45 岁中国女草药园主文姐(南方湿热地带血统)。身高 160cm。
+> **麦色皮肤,圆脸,温和但带磨损感**。
+> **黑色长发常用一块深绿头巾包起**。穿**深绿色耐磨短袍 + 工作裤**。
+> **手指上常带泥但保持得干净**。**颈上挂一块磨得很滑的小石头吊坠**(亡子的玩具)。
+> 表情**沉默坚韧**,字少但有重量。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Wen Jie, 45-year-old Chinese herb farm owner from southern humid regions. Wheat-
-toned round face, gentle but worn. Long black hair wrapped in a dark green
-headscarf. Wearing a dark green short tunic with work trousers. Earth-stained but
-clean fingers. A small smooth stone pendant on a leather cord around her neck
-(her late child's keepsake). Quiet, weighty gaze. Off-white parchment background.
-Anime-pixel bust shot.
-```
+**关键 keyword**:麦色皮肤、圆脸、深绿头巾、深绿短袍、泥手干净、石头吊坠、沉默坚韧
 
 ---
 
 ## 11. 小璎(agent_11)捕魔队新人 · 19 岁女
 
-**核心特征**:圆脸 / 圆亮双眸带活气 / **齐整黑短发用红色细绳扎小马尾** / 浅蓝作战服 + 皮护腕 / **脸颊小雀斑**
+> anime 像素胸像,19 岁中国女捕魔队新人小璎(千绫的徒弟)。身高 158cm,
+> **圆脸,圆亮带活气的双眼**。**脸颊有小雀斑**。
+> **齐整的黑色短发用一根红色细绳扎一个小马尾**。
+> 穿**浅蓝色作战服 + 皮革护腕**。
+> 表情**活泼,渴望被认可**,带年轻人的紧张感。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Xiao Ying, 19-year-old Chinese young female monster-hunter rookie. Round face,
-bright round lively eyes, freckles on cheeks. Neatly cut short black hair with
-a small ponytail tied by a red string. Wearing a light blue combat uniform with
-leather wrist guards. Eager, slightly nervous expression. Off-white parchment
-background. Anime-pixel bust shot.
-```
+**关键 keyword**:圆脸、雀斑、黑短发、红绳小马尾、浅蓝作战服、皮护腕、活泼
 
 ---
 
 ## 12. 白嬤(agent_12)村中老人 · 73 岁女 · **疑似治愈者**
 
-**核心特征**:**满头银白长发常不束** / 多皱皮肤但**清澈眼睛** / 深色粗布长袍 / **磨亮木杖** / **肩袍上有羽毛痕**(常有鸟停)
+> anime 像素胸像,73 岁中国女老人白嬤(隐居者,真实身份不明)。身高 155cm,中等偏瘦。
+> **满头银白长发常常不束**,飘散着。
+> **皮肤多皱,但眼睛意外清澈**,几乎不属于这个世界的感觉。
+> 穿**深色粗布长袍**。**一只手拿一根磨得发亮的木杖**。
+> **肩袍上有几根羽毛痕**(常有鸟停在她肩上)。
+> 表情**极简、深不可测、时间外的人**,平静而疏远。
+> 透明背景。anime-pixel 风格。
 
-**英文 prompt**:
-```
-[通用 prefix] +
-Bai Mo, 73-year-old elderly Chinese woman of mysterious origin. Long silver-white
-hair often unbound and flowing. Wrinkled skin but strikingly clear eyes (almost
-otherworldly). Wearing a dark coarse cloth long robe. Holds a worn wooden staff.
-A few small feather traces on her shoulder (birds often perch on her). Serene,
-timeless expression. Off-white parchment background. Anime-pixel bust shot.
-```
+**关键 keyword**:银白长发不束、多皱皮肤、清澈眼睛、深色粗布长袍、木杖、肩上羽毛痕、深不可测
 
 ---
 
-## 使用建议
+## 📌 使用建议
 
-1. **批量生成**:可以一次给 ChatGPT 多个 prompt(每张分开生成,免得 AI 把多角色混进一张)
-2. **风格一致性**:**第一张**(比如林秋)定调,后面 10 张说"和林秋的画风一致" + 具体角色描述
-3. **筛选**:每个 NPC 生成 3-5 张,挑最像 persona 的那张
-4. **上传给我**:平板对话直接发图(可批量),发完跟我说"图发完了 + 是 X 角色",我跑提取脚本 + 抠白边 + 放到正确目录
+### 风格定调:用艾琳第一张
+先用上面的"林秋"prompt(或任何一个)生成 3-5 张挑最好的"定调"。然后:
+- **后面 10 张加一句**:"和林秋的画风完全一致"
+- 或直接说:"和我之前给你的艾琳样图(蓝白连衣裙金长发蓝眼)同一画风"
 
-## 抠白边
+### 风格统一
+- ChatGPT/DALL·E:**一次只发一个 NPC** 的 prompt(免得它把多角色混进一张)
+- GPT-Image-1 / 国内 AI:同上,逐个生成
+- 每个 NPC **生成 3-5 张挑最好**(AI 抽卡总有差异)
 
-ChatGPT/DALL·E 通常生成图带白边(不是真透明背景)。我已写 `scripts/remove_white_bg.py`,会自动:
-- 检测 4 角是否纯白 / 接近白
-- flood-fill 从边缘往内扩散把背景 alpha=0(不会误伤角色身上的白色像素)
-- 保存为透明 PNG
+### 上传给我
+- 平板对话**直接发图**(可批量发多张)
+- 跟我说"这是 X 角色"(可选,我也能看图自己识别)
+- 我自动跑 `extract_uploaded_images.py` → `remove_white_bg.py` → 放到 `godot_client/assets/portraits/agent_XX/portrait.png`
 
-你只需要发图 → 我跑脚本 → 抠完。
+### 哪个角色优先?
+- 🔴 **林秋 / 阿杏 / 千绫** 先做(F4.4 对话玩家最常打招呼)
+- 🟡 早纪 / 沈砚 / 文姐 / 苏拂 次之
+- 🟢 马九 / 田柱 / 小璎 / 白嬤 最后
+
+---
+
+## 备用:英文 prompt(如果某个 AI 中文响应不好)
+
+每个 NPC 我之前给过英文版,在 git 历史:`git show HEAD~1:docs/PORTRAIT_PROMPTS.md`(已被这版中文覆盖)。需要的话告诉我,我重新输出。
