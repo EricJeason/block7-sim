@@ -1,0 +1,88 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_api_key_dialog"]
+
+[ext_resource type="Script" path="res://scripts/api_key_dialog.gd" id="1_dialog_script"]
+
+[node name="ApiKeyDialog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 0
+script = ExtResource("1_dialog_script")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.02, 0.03, 0.06, 0.92)
+
+[node name="Panel" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 340.0
+offset_top = 170.0
+offset_right = 940.0
+offset_bottom = 550.0
+color = Color(0.12, 0.13, 0.18, 1)
+
+[node name="Title" type="Label" parent="Panel"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 580.0
+offset_bottom = 60.0
+text = "🔑 DeepSeek API Key 配置"
+horizontal_alignment = 0
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 0.95, 0.75, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="Hint" type="RichTextLabel" parent="Panel"]
+offset_left = 20.0
+offset_top = 70.0
+offset_right = 580.0
+offset_bottom = 200.0
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+text = "[color=#b8c2d2]首次启动需要配置 DeepSeek API key 才能让 agent 思考。
+
+[b][color=#e8b878]获取 key[/color][/b]:访问 [color=#88c8ff]platform.deepseek.com[/color] → 注册 → 充值 → API Keys → 创建,复制 sk- 开头的字符串。
+
+[b][color=#85d885]本地存储 + 安全[/color][/b]:key 写入本机 .env 文件,绝不上传任何远程服务器,绝不写入 git。你可以随时手动改 .env 替换。[/color]"
+theme_override_colors/default_color = Color(0.84, 0.84, 0.84, 1)
+theme_override_font_sizes/normal_font_size = 13
+
+[node name="KeyLineEdit" type="LineEdit" parent="Panel"]
+offset_left = 20.0
+offset_top = 215.0
+offset_right = 580.0
+offset_bottom = 255.0
+placeholder_text = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+secret = true
+secret_character = "•"
+theme_override_font_sizes/font_size = 14
+
+[node name="SubmitButton" type="Button" parent="Panel"]
+offset_left = 20.0
+offset_top = 265.0
+offset_right = 200.0
+offset_bottom = 305.0
+text = "✓ 提交并启动"
+theme_override_font_sizes/font_size = 16
+
+[node name="ShowKeyButton" type="CheckBox" parent="Panel"]
+offset_left = 220.0
+offset_top = 270.0
+offset_right = 360.0
+offset_bottom = 300.0
+text = "显示明文"
+theme_override_font_sizes/font_size = 12
+
+[node name="StatusLabel" type="Label" parent="Panel"]
+offset_left = 20.0
+offset_top = 315.0
+offset_right = 580.0
+offset_bottom = 360.0
+text = ""
+theme_override_colors/font_color = Color(0.95, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 3

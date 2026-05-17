@@ -64,6 +64,11 @@ signal daily_reflection_completed(game_day: int, reflection_count: int, merged_c
 ## 玩家点 AgentNode sprite/色块时触发(LocationView 转发)
 signal agent_clicked(agent_id: String)
 
+## API key 未配置 → 触发首页弹窗(BackendClient 启动时调 /sim/api_key/status)
+signal api_key_required
+## API key 配置完成 → 弹窗隐藏 + BackendClient 恢复 fetch_world / 开 WS
+signal api_key_configured
+
 # ----------------------------------------------------------------- state
 
 ## locations[location_id] = { id, name, type, description, open_hours, adjacent_to[] }

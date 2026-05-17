@@ -162,6 +162,85 @@ async def test_sim_health_tracks_ticks(engine: SimEngine, app_with_engine) -> No
 
 
 # ============================================================================
+#                            API key 管理(P4)
+# ============================================================================
+
+
+def _attach_llm_client(app_with_engine: FastAPI, key: str = "") -> Any:
+    """给 app.state 挂一个 mock LLM client(实现 update_api_key / is_configured / masked)。"""
+    from src.llm.deepseek import DeepSeekClient
+    client = DeepSeekClient(api_key=key, base_url="https://example.com")
+    app_with_engine.state.llm_client = client
+    return client
+
+
+def test_api_key_status_not_configured(app_with_engine: FastAPI) -> None:
+    _attach_llm_client(app_with_engine, key="")
+    with TestClient(app_with_engine) as c:
+        r = c.get("/sim/api_key/status")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["configured"] is False
+        assert data["masked"] == ""
+
+
+def test_api_key_status_configured_returns_masked(app_with_engine: FastAPI) -> None:
+    """已配置 → 返回脱敏前 6 + 后 4,绝不返回明文。"""
+    _attach_llm_client(app_with_engine, key="sk-abcdefghijklmnopqrstuvwxyz1234")
+    with TestClient(app_with_engine) as c:
+        r = c.get("/sim/api_key/status")
+        data = r.json()
+        assert data["configured"] is True
+        assert data["masked"] == "sk-abc...1234"
+        # 绝不能含完整 key
+        assert "abcdefghijklmnop" not in data["masked"]
+
+
+def test_set_api_key_rejects_bad_format(app_with_engine: FastAPI) -> None:
+    _attach_llm_client(app_with_engine, key="")
+    with TestClient(app_with_engine) as c:
+        # 短 key
+        r = c.post("/sim/api_key/set", json={"key": "sk-abc", "persist": False})
+        assert r.status_code == 400
+        # 不以 sk- 开头
+        r = c.post(
+            "/sim/api_key/set",
+            json={"key": "abcdefghijklmnopqrstuvwxyz", "persist": False},
+        )
+        assert r.status_code == 400
+
+
+def test_set_api_key_updates_runtime(app_with_engine: FastAPI) -> None:
+    """合法 key → 即时更新 client,状态变 configured,不持久化时不写文件。"""
+    client = _attach_llm_client(app_with_engine, key="")
+    with TestClient(app_with_engine) as c:
+        assert client.is_api_key_configured() is False
+        r = c.post(
+            "/sim/api_key/set",
+            json={
+                "key": "sk-newkeyabcdefghijklmnopqrstuvwxyz",
+                "persist": False,
+            },
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["configured"] is True
+        assert data["persisted_to_env"] is False
+        assert client.api_key == "sk-newkeyabcdefghijklmnopqrstuvwxyz"
+        # 后续 chat() 时 Authorization header 已更新
+        assert client._client.headers["Authorization"] == "Bearer sk-newkeyabcdefghijklmnopqrstuvwxyz"
+
+
+def test_api_key_status_no_llm_client(app_with_engine: FastAPI) -> None:
+    """app.state.llm_client 未挂 → 安全返回 configured: False。"""
+    # 不挂 llm_client
+    with TestClient(app_with_engine) as c:
+        r = c.get("/sim/api_key/status")
+        assert r.status_code == 200
+        assert r.json()["configured"] is False
+
+
+# ============================================================================
 #                            HTTP /agents
 # ============================================================================
 

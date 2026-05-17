@@ -45,7 +45,7 @@ func start() -> void:
 # ------------------------------------------------------------------ HTTP
 
 func _check_health() -> void:
-	"""沿用 Block A 的 /health 探活,通过后才拉 /world。"""
+	"""沿用 Block A 的 /health 探活,通过后查 api_key 状态,再拉 /world。"""
 	var http := HTTPRequest.new()
 	add_child(http)
 	http.request_completed.connect(
@@ -57,13 +57,97 @@ func _check_health() -> void:
 				get_tree().create_timer(RECONNECT_INTERVAL).timeout.connect(_check_health)
 				return
 			print("[backend_client] /health ok")
-			_fetch_world()
+			_check_api_key()
 	)
 	var err: int = http.request(BACKEND_URL + "/health")
 	if err != OK:
 		push_warning("[backend_client] /health request err=%d" % err)
 		http.queue_free()
 		get_tree().create_timer(RECONNECT_INTERVAL).timeout.connect(_check_health)
+
+
+func _check_api_key() -> void:
+	"""GET /sim/api_key/status — 未配置则触发弹窗,等用户填完;已配置则继续 fetch_world。"""
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+			http.queue_free()
+			# 失败兜底:假设已配置,继续往下走(让 _fetch_world 失败再让用户感知)
+			if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+				print("[backend_client] /sim/api_key/status 失败,跳过校验直接 fetch_world")
+				_fetch_world()
+				return
+			var text: String = body.get_string_from_utf8()
+			var parsed: Variant = JSON.parse_string(text)
+			if typeof(parsed) != TYPE_DICTIONARY:
+				_fetch_world()
+				return
+			var configured: bool = bool(parsed.get("configured", false))
+			if configured:
+				print("[backend_client] api_key 已配置: %s" % parsed.get("masked", ""))
+				_fetch_world()
+			else:
+				print("[backend_client] api_key 未配置 → 弹窗等用户输入")
+				# 监听 api_key_configured signal 后再继续
+				if not GameWorld.api_key_configured.is_connected(_on_api_key_configured):
+					GameWorld.api_key_configured.connect(_on_api_key_configured, CONNECT_ONE_SHOT)
+				GameWorld.api_key_required.emit()
+	)
+	var err: int = http.request(BACKEND_URL + "/sim/api_key/status")
+	if err != OK:
+		http.queue_free()
+		_fetch_world()
+
+
+func _on_api_key_configured() -> void:
+	"""ApiKeyDialog 提交成功后 → 继续 fetch_world + 开 WS。"""
+	print("[backend_client] api_key 配置完成,继续 fetch_world")
+	_fetch_world()
+
+
+## POST /sim/api_key/set — ApiKeyDialog 调用。
+## callback 形如:func(success: bool, masked: String, persisted: bool, error: String) -> void
+func submit_api_key(key: String, callback: Callable) -> void:
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+			http.queue_free()
+			var text: String = body.get_string_from_utf8()
+			if result != HTTPRequest.RESULT_SUCCESS:
+				callback.call(false, "", false, "网络错误 (result=%d)" % result)
+				return
+			var parsed: Variant = JSON.parse_string(text)
+			if code != 200:
+				var detail: String = ""
+				if typeof(parsed) == TYPE_DICTIONARY:
+					detail = str(parsed.get("detail", text))
+				else:
+					detail = text
+				callback.call(false, "", false, detail)
+				return
+			if typeof(parsed) != TYPE_DICTIONARY:
+				callback.call(false, "", false, "响应格式异常")
+				return
+			callback.call(
+				true,
+				str(parsed.get("masked", "")),
+				bool(parsed.get("persisted_to_env", false)),
+				"",
+			)
+	)
+	var body_json: String = JSON.stringify({"key": key, "persist": true})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err: int = http.request(
+		BACKEND_URL + "/sim/api_key/set",
+		headers,
+		HTTPClient.METHOD_POST,
+		body_json,
+	)
+	if err != OK:
+		http.queue_free()
+		callback.call(false, "", false, "请求发起失败 err=%d" % err)
 
 
 func _fetch_world() -> void:

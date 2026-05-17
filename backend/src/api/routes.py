@@ -9,17 +9,26 @@ SimEngine 由 main.py 的 lifespan 创建并挂载。
 - GET /agent/{id}/state 单个 agent 完整快照
 - GET /agent/{id}/memories?limit=20&type=observation
                         最近 N 条 memory(可按 type 过滤)
+- GET /sim/api_key/status   key 是否已配置 + 脱敏首尾(不返回明文)
+- POST /sim/api_key/set     body={key} 运行时设 key + 写 .env
 """
 from __future__ import annotations
 
 from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
+from src.config_writer import persist_api_key_to_env
 from src.memory.store import Memory
 from src.sim import SimEngine
 
 router = APIRouter()
+
+
+class SetApiKeyRequest(BaseModel):
+    key: str = Field(..., description="DeepSeek API key (sk- 开头)")
+    persist: bool = Field(default=True, description="是否写入项目根 .env 文件(默认 True)")
 
 
 def _get_engine(request: Request) -> SimEngine:
@@ -56,6 +65,55 @@ async def get_sim_health(request: Request) -> dict[str, Any]:
     engine = _get_engine(request)
     llm_client = getattr(request.app.state, "llm_client", None)
     return engine.health_snapshot(llm_client=llm_client)
+
+
+# =========================================================== API key 管理
+
+@router.get("/sim/api_key/status")
+async def get_api_key_status(request: Request) -> dict[str, Any]:
+    """查询 API key 是否已配置 + 脱敏首尾。永不返回明文。
+
+    给 Godot 启动时调用,无 key 则弹"输入 key"对话框。
+    """
+    llm_client = getattr(request.app.state, "llm_client", None)
+    if llm_client is None or not hasattr(llm_client, "is_api_key_configured"):
+        return {"configured": False, "masked": ""}
+    configured = llm_client.is_api_key_configured()
+    return {
+        "configured": configured,
+        "masked": llm_client.masked_api_key() if configured else "",
+    }
+
+
+@router.post("/sim/api_key/set")
+async def set_api_key(req: SetApiKeyRequest, request: Request) -> dict[str, Any]:
+    """运行时设 API key。
+
+    - 校验 sk- 开头
+    - 调 DeepSeekClient.update_api_key 立刻生效(不重启 backend)
+    - 默认 persist=True 写到项目根 .env(下次启动自动加载)
+    - 返回 status,不返回明文 key
+    """
+    key = req.key.strip()
+    if not key.startswith("sk-") or len(key) < 20:
+        raise HTTPException(
+            status_code=400,
+            detail="key 格式错误,应以 sk- 开头且长度 ≥ 20 字符",
+        )
+    llm_client = getattr(request.app.state, "llm_client", None)
+    if llm_client is None or not hasattr(llm_client, "update_api_key"):
+        raise HTTPException(
+            status_code=503, detail="llm_client 未初始化"
+        )
+    llm_client.update_api_key(key)
+    persisted = False
+    if req.persist:
+        persisted = persist_api_key_to_env(key)
+    return {
+        "configured": True,
+        "masked": llm_client.masked_api_key(),
+        "persisted_to_env": persisted,
+    }
 
 
 @router.post("/sim/pause")

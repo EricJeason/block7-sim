@@ -111,6 +111,37 @@ class DeepSeekClient:
     async def aclose(self) -> None:
         await self._client.aclose()
 
+    def update_api_key(self, new_key: str) -> None:
+        """运行时更新 API key(供 Godot 弹窗 POST /sim/api_key/set 调)。
+
+        - 更新 self.api_key
+        - 更新 httpx AsyncClient 的 Authorization header
+        - 不重建连接池,后续 chat() 立即用新 key
+        """
+        self.api_key = new_key
+        self._client.headers["Authorization"] = f"Bearer {new_key}"
+
+    def is_api_key_configured(self) -> bool:
+        """检查 key 是否有效(非空 + 非占位 + 长度合理)。"""
+        if not self.api_key:
+            return False
+        if self.api_key in ("your_api_key_here", "PLACEHOLDER", "dummy"):
+            return False
+        if len(self.api_key) < 10:
+            return False
+        return True
+
+    def masked_api_key(self) -> str:
+        """脱敏的 key,只显示首尾各 4 位(用于 GET /sim/api_key/status 回显)。
+
+        例:sk-abcd...wxyz
+        """
+        if not self.is_api_key_configured():
+            return ""
+        if len(self.api_key) <= 12:
+            return "sk-***"
+        return f"{self.api_key[:6]}...{self.api_key[-4:]}"
+
     def _build_request_body(
         self,
         messages: list[dict[str, str]],

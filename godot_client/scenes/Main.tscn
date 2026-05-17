@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://b7sim_main"]
+[gd_scene load_steps=3 format=3 uid="uid://b7sim_main"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://b7sim_api_key_dialog" path="res://scenes/ApiKeyDialog.tscn" id="2_apikey"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -227,3 +228,9 @@ horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_colors/font_color = Color(0.65, 0.65, 0.72, 1)
 theme_override_font_sizes/font_size = 14
+
+; ----------- API key 弹窗(独立 CanvasLayer,layer=10 压在所有 HUD 之上)
+[node name="DialogLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="ApiKeyDialog" parent="DialogLayer" instance=ExtResource("2_apikey")]
