@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_system_menu"]
+
+[ext_resource type="Script" path="res://scripts/ui/system_menu.gd" id="1_system_menu"]
+
+[node name="SystemMenu" type="Control"]
+script = ExtResource("1_system_menu")

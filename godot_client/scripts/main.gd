@@ -15,6 +15,7 @@ const LOCATION_SCENES := {
 }
 
 # F1 新 HUD 控件类型 preload(保证不依赖 .godot/ class_name cache)
+const ChromeTheme := preload("res://scripts/ui/chrome_theme.gd")
 const WoodClock := preload("res://scripts/ui/wood_clock.gd")
 const LocationLabel := preload("res://scripts/ui/location_label.gd")
 const KeyHints := preload("res://scripts/ui/key_hints.gd")
@@ -22,6 +23,10 @@ const PausedChip := preload("res://scripts/ui/paused_chip.gd")
 
 # F2 BubbleMenu(E 互动气泡)
 const BubbleMenuScene := preload("res://scenes/ui/BubbleMenu.tscn")
+
+# F3 modal scenes
+const LocationCardScene := preload("res://scenes/ui/LocationCard.tscn")
+const SystemMenuScene := preload("res://scenes/ui/SystemMenu.tscn")
 
 @onready var location_container: Node2D = $LocationContainer
 @onready var time_label: Label = $HUD/TimePanel/TimeLabel
@@ -58,6 +63,10 @@ var _bubble_menu: Control = null
 # F2 边界提示(玩家撞边界 + 推方向时浮现,固定在 WoodClock 下方)
 var _boundary_hint: PanelContainer = null
 var _boundary_hint_label: Label = null
+
+# F3 modal 单实例(同时只允许一个 modal,Q/Esc 互斥)
+var _location_card: Control = null
+var _system_menu: Control = null
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -281,6 +290,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		# F2: F11 切全屏
 		get_viewport().set_input_as_handled()
 		_toggle_fullscreen()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_Q and not event.echo:
+		# F3: Q 场所概览
+		get_viewport().set_input_as_handled()
+		_toggle_location_card()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and not event.echo:
+		# F3: Esc 系统菜单
+		get_viewport().set_input_as_handled()
+		_toggle_system_menu()
 
 
 func _toggle_fullscreen() -> void:
@@ -695,3 +712,64 @@ func _on_boundary_hint_changed(should_show: bool, text: String) -> void:
 		_boundary_hint.visible = true
 	else:
 		_boundary_hint.visible = false
+
+
+# ============================================================================
+# F3 Q 场所概览 + Esc 系统菜单
+# ============================================================================
+
+func _toggle_location_card() -> void:
+	"""按 Q 切换 LocationCard 显隐。已显示则关闭。"""
+	if _location_card != null and is_instance_valid(_location_card):
+		_location_card.queue_free()
+		_location_card = null
+		_unlock_player()
+		return
+	# 关闭其他 modal
+	if _system_menu != null and is_instance_valid(_system_menu):
+		_system_menu.queue_free()
+		_system_menu = null
+	# 创建
+	var card = LocationCardScene.instantiate()
+	$HUD.add_child(card)
+	card.setup(GameWorld.current_view_location)
+	card.closed.connect(func() -> void:
+		_location_card = null
+		_unlock_player()
+	)
+	_location_card = card
+	_lock_player()
+
+
+func _toggle_system_menu() -> void:
+	"""按 Esc 切换 SystemMenu 显隐。已显示则关闭。"""
+	if _system_menu != null and is_instance_valid(_system_menu):
+		_system_menu.queue_free()
+		_system_menu = null
+		_unlock_player()
+		return
+	# 如果当前有 BubbleMenu 或 LocationCard,Esc 优先关它们
+	if _bubble_menu != null and is_instance_valid(_bubble_menu):
+		return  # BubbleMenu 自己处理 Esc(取消)
+	if _location_card != null and is_instance_valid(_location_card):
+		_location_card.queue_free()
+		_location_card = null
+		_unlock_player()
+		return
+	# 创建
+	var menu = SystemMenuScene.instantiate()
+	$HUD.add_child(menu)
+	menu.closed.connect(func() -> void:
+		_system_menu = null
+		_unlock_player()
+	)
+	_system_menu = menu
+	_lock_player()
+
+
+func _lock_player() -> void:
+	if _current_view == null:
+		return
+	var player: Node = _current_view.get_player_node() if _current_view.has_method("get_player_node") else null
+	if player != null and player.has_method("set_move_blocked"):
+		player.set_move_blocked(true)

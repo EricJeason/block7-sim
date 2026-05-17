@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_location_card"]
+
+[ext_resource type="Script" path="res://scripts/ui/location_card.gd" id="1_location_card"]
+
+[node name="LocationCard" type="Control"]
+script = ExtResource("1_location_card")
