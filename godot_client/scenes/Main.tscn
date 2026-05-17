@@ -130,3 +130,42 @@ fit_content = false
 scroll_active = true
 theme_override_colors/default_color = Color(0.92, 0.92, 0.92, 1)
 theme_override_font_sizes/normal_font_size = 12
+
+; ---------------- 全屏 LoadingOverlay(等所有 agent 预热完成) ----------------
+[node name="LoadingOverlay" type="ColorRect" parent="HUD"]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.04, 0.05, 0.08, 0.88)
+
+[node name="Title" type="Label" parent="HUD/LoadingOverlay"]
+offset_left = 0.0
+offset_top = 280.0
+offset_right = 1280.0
+offset_bottom = 340.0
+text = "⏳ 暮谷镇 · 加载中"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 0.95, 0.78, 1)
+theme_override_font_sizes/font_size = 36
+
+[node name="Progress" type="Label" parent="HUD/LoadingOverlay"]
+offset_left = 0.0
+offset_top = 350.0
+offset_right = 1280.0
+offset_bottom = 390.0
+text = "等待 backend 连接..."
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 20
+
+[node name="Hint" type="Label" parent="HUD/LoadingOverlay"]
+offset_left = 0.0
+offset_top = 400.0
+offset_right = 1280.0
+offset_bottom = 440.0
+text = "首轮 LLM 思考约 30-90 秒,所有 agent 准备好后自动进入。"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.65, 0.65, 0.72, 1)
+theme_override_font_sizes/font_size = 14

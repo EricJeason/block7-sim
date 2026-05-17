@@ -104,23 +104,26 @@ func on_thinking_completed(_appended_count: int) -> void:
 
 # ------------------------------------------------------- dialogue speech
 
-## 显示一句台词,3 秒后自动隐藏(如果没有新台词覆盖)。
+## 显示一句台词。时长按字数动态调整(每字 ~0.18s,最少 4 秒):
+##   30 字 → 5.4 秒,50 字 → 9 秒,80 字 → 14.4 秒
 ## 由 LocationView 接到 GameWorld.dialogue_line signal 后转发。
-func show_speech_line(text: String, duration_seconds: float = 3.0) -> void:
+func show_speech_line(text: String) -> void:
 	speech_label.text = text
 	speech_bubble.visible = true
-	# 取消旧 timer,重置 3 秒
-	# SceneTreeTimer 没有 cancel,但旧 timer 触发时检查 text 是否已变即可
+	# 按字数算阅读时间;中文字符按 1 字计算
+	var duration: float = max(4.0, float(text.length()) * 0.18)
 	var snapshot_text := text
-	var t := get_tree().create_timer(duration_seconds)
+	var t := get_tree().create_timer(duration)
 	_speech_hide_timer = t
 	t.timeout.connect(func() -> void:
-		# 仅在没有更新过台词时才隐藏
+		# 仅在没有被新台词覆盖时才隐藏
 		if speech_label.text == snapshot_text:
 			speech_bubble.visible = false
 	)
 
 
+## 仅在显式需要立刻清空时调用(如场景切换)。
+## dialogue_ended 不再调此方法,让最后一句的 timer 自然结束 — 避免被挤掉。
 func hide_speech() -> void:
 	speech_bubble.visible = false
 	speech_label.text = ""

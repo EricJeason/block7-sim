@@ -53,6 +53,10 @@ signal dialogue_started(session_id: String, initiator_id: String, target_id: Str
 signal dialogue_line(session_id: String, speaker_id: String, text: String, turn_idx: int)
 signal dialogue_ended(session_id: String, initiator_id: String, target_id: String, total_turns: int, reason: String)
 
+## Block I 精修:agent 就绪状态变化。每个 agent 首次 action_started 时 +1 ready_count。
+## ready_count 达到 total 时视为 sim 完全预热,UI 隐藏 LoadingOverlay。
+signal warmup_progress(ready_count: int, total: int)
+
 # ----------------------------------------------------------------- state
 
 ## locations[location_id] = { id, name, type, description, open_hours, adjacent_to[] }
@@ -73,6 +77,9 @@ var time_scale: float = 60.0
 
 ## sim 是否暂停(后端 /world 返回 + WS paused_changed 同步)。
 var paused: bool = true  # 默认暂停假设(BLOCK7_START_PAUSED=1)
+
+## 已收到首个 action_started 的 agent 集合(用 dict 当 set)。
+var _ready_agents: Dictionary = {}
 
 var _connected: bool = false
 
@@ -188,6 +195,11 @@ func _apply_action_started(agent_id: String, payload: Dictionary) -> void:
 	agents[agent_id]["current_action"] = action
 	agent_started_action.emit(agent_id, action)
 
+	# Block I 精修:首次 action 视为 agent 预热完成
+	if not _ready_agents.has(agent_id):
+		_ready_agents[agent_id] = true
+		warmup_progress.emit(_ready_agents.size(), agents.size())
+
 
 func _apply_action_completed(agent_id: String, payload: Dictionary) -> void:
 	if agent_id == "" or not agents.has(agent_id):
@@ -249,6 +261,11 @@ func set_connected(connected: bool) -> void:
 
 func is_connected_to_backend() -> bool:
 	return _connected
+
+
+func is_warmup_complete() -> bool:
+	"""所有已注册 agent 都至少接收过一次 action_started → 视为预热完成。"""
+	return agents.size() > 0 and _ready_agents.size() >= agents.size()
 
 
 # ----------------------------------------------------- helpers

@@ -187,9 +187,7 @@ func _on_dialogue_line(_session_id: String, speaker_id: String, text: String, _t
 		node.show_speech_line(text)
 
 
-func _on_dialogue_ended(_sess: String, initiator_id: String, target_id: String, _turns: int, _reason: String) -> void:
-	# 立刻隐藏双方气泡(若还显示)
-	for aid in [initiator_id, target_id]:
-		var node: Node = _agent_nodes.get(aid)
-		if node != null and node.has_method("hide_speech"):
-			node.hide_speech()
+func _on_dialogue_ended(_sess: String, _initiator_id: String, _target_id: String, _turns: int, _reason: String) -> void:
+	# Block I 精修:不再立刻隐藏气泡 — 让最后一句的 timer 按字数自然消失,
+	# 避免短台词刚弹出就被强制清掉
+	pass

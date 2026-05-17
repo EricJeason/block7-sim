@@ -27,6 +27,8 @@ const LOCATION_SCENES := {
 @onready var memory_title: Label = $HUD/MemoryPanel/Title
 @onready var memory_content: RichTextLabel = $HUD/MemoryPanel/Content
 @onready var pause_button: Button = $HUD/PausePanel/PauseButton
+@onready var loading_overlay: ColorRect = $HUD/LoadingOverlay
+@onready var loading_progress: Label = $HUD/LoadingOverlay/Progress
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -45,12 +47,14 @@ func _ready() -> void:
 	GameWorld.agent_moved.connect(_on_agent_moved_anywhere)
 	GameWorld.agent_thinking_started.connect(_on_agent_thinking_changed)
 	GameWorld.agent_thinking_completed.connect(_on_agent_thinking_changed2)
+	GameWorld.warmup_progress.connect(_on_warmup_progress)
 	pause_button.pressed.connect(_on_pause_button_pressed)
 
 	_update_nav_label()
 	_update_time_label()
 	_update_connection_dot(false)
 	_update_pause_button()
+	_update_loading_overlay()
 	memory_panel.visible = false
 
 
@@ -58,6 +62,7 @@ func _on_world_initialized(_world: Dictionary) -> void:
 	# 第一次或重连时灌入了 world,加载默认场所
 	_switch_location_view(GameWorld.current_view_location)
 	_refresh_inspector()
+	_update_loading_overlay()
 
 
 func _on_location_switched(new_location_id: String) -> void:
@@ -88,10 +93,12 @@ func _on_sim_ticked(_game_time: float) -> void:
 
 func _on_connection_changed(connected: bool) -> void:
 	_update_connection_dot(connected)
+	_update_loading_overlay()
 
 
 func _on_paused_changed(_paused: bool) -> void:
 	_update_pause_button()
+	_update_loading_overlay()
 
 
 func _on_pause_button_pressed() -> void:
@@ -114,6 +121,31 @@ func _update_pause_button() -> void:
 	else:
 		pause_button.text = "⏸ 暂停(运行中)"
 		pause_button.modulate = Color(1.0, 0.9, 0.5, 1)
+
+
+# ----------------------------------------------------- loading overlay
+
+func _on_warmup_progress(ready_count: int, total: int) -> void:
+	loading_progress.text = "等待 agent 完成首轮思考...  %d / %d" % [ready_count, total]
+	if GameWorld.is_warmup_complete():
+		loading_overlay.visible = false
+
+
+func _update_loading_overlay() -> void:
+	"""根据当前状态显示/隐藏 LoadingOverlay。
+	已预热完成 → 隐藏;否则按 paused 状态显示不同提示。"""
+	if GameWorld.is_warmup_complete():
+		loading_overlay.visible = false
+		return
+	loading_overlay.visible = true
+	if not GameWorld.is_connected_to_backend():
+		loading_progress.text = "等待 backend 连接..."
+	elif GameWorld.paused:
+		loading_progress.text = "暂停中 — 点左下 ▶ 开始按钮启动预热"
+	else:
+		var ready: int = GameWorld._ready_agents.size()
+		var total: int = GameWorld.agents.size()
+		loading_progress.text = "等待 agent 完成首轮思考...  %d / %d" % [ready, total]
 
 
 # ----------------------------------------------------- input
