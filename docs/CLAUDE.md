@@ -1,7 +1,7 @@
 # CLAUDE.md — Block-7 项目工作守则
 
 **项目代号**:Block-7 生成式智能体社会模拟器(暮谷镇)
-**当前阶段**:Day 1 MVP **全部完成**(A→I,含暮谷镇世界观);BC 成本控制开关已上;**下一步由 Eric 拍板**(候选:美术替换 Block J / 玩家介入 Block K / 通宵观察 Block L)
+**当前阶段**:Day 1 MVP **全部完成**(A→I,含暮谷镇世界观);BC 成本控制开关已上;**Eric 在外讨论 UI 重做**(Claude.ai + Claude Design),Claude Code 后台持续打磨
 **协作主理**:Eric(高三学生,非专职程序员)
 
 ---
@@ -9,11 +9,16 @@
 ## ⚡ 你接手时请按这个顺序读
 
 1. **本文档**(< 1 分钟):红线 + 索引
-2. **[`工作展望.md`](工作展望.md)**(5 分钟):快速恢复指南 + Block G/H 详规 + 关键文件地图 + 待 Eric 拍板事项
-3. **[`Day1_工作总结.md`](Day1_工作总结.md)**(可选,5 分钟):历史轨迹 + 实测数据 + 踩坑记录
-4. **[`Project_Design_Document_v0_2.md`](Project_Design_Document_v0_2.md)**(查阅型):架构总纲
+2. **[`HANDOFF_FOR_NEXT_SESSION.md`](HANDOFF_FOR_NEXT_SESSION.md)**(5 分钟):**session 续接说明 + 打磨任务清单 + 文件地图**——2026-05-17 新写,优先读
+3. **[`工作展望.md`](工作展望.md)**(5 分钟):接手指南 + 剩余 Block 详规 + 待 Eric 拍板事项
+4. **[`Day1_工作总结.md`](Day1_工作总结.md)**(可选,5 分钟):历史轨迹 + 实测数据 + 踩坑记录
+5. **[`Project_Design_Document_v0_2.md`](Project_Design_Document_v0_2.md)**(查阅型):架构总纲
 
 > 不要直接看 `Day1_Block_*_Task.md`——那些是历史任务派单,可能与当前代码不一致。
+
+**给 Eric 的对外交接包**(他在 Claude.ai 网页端讨论设计时复制粘贴用):
+- [`HANDOFF_TO_CLAUDE_DESIGN.md`](HANDOFF_TO_CLAUDE_DESIGN.md):完整项目交接包
+- [`UI_REDESIGN_BRIEF.md`](UI_REDESIGN_BRIEF.md):专门给 Claude Design 看的 UI 重做简报
 
 ---
 
