@@ -137,9 +137,41 @@ text = ""
 theme_override_colors/font_color = Color(0.95, 0.85, 0.55, 1)
 theme_override_font_sizes/font_size = 14
 
+[node name="FilterBar" type="HBoxContainer" parent="HUD/MemoryPanel"]
+offset_left = 8.0
+offset_top = 38.0
+offset_right = 262.0
+offset_bottom = 68.0
+theme_override_constants/separation = 4
+
+[node name="BtnAll" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+custom_minimum_size = Vector2(58, 26)
+text = "全部"
+toggle_mode = true
+button_pressed = true
+theme_override_font_sizes/font_size = 12
+
+[node name="BtnReflection" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+custom_minimum_size = Vector2(64, 26)
+text = "🌒反思"
+toggle_mode = true
+theme_override_font_sizes/font_size = 12
+
+[node name="BtnObservation" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+custom_minimum_size = Vector2(64, 26)
+text = "👁观察"
+toggle_mode = true
+theme_override_font_sizes/font_size = 12
+
+[node name="BtnPlan" type="Button" parent="HUD/MemoryPanel/FilterBar"]
+custom_minimum_size = Vector2(64, 26)
+text = "📋计划"
+toggle_mode = true
+theme_override_font_sizes/font_size = 12
+
 [node name="Content" type="RichTextLabel" parent="HUD/MemoryPanel"]
 offset_left = 12.0
-offset_top = 42.0
+offset_top = 72.0
 offset_right = 258.0
 offset_bottom = 322.0
 bbcode_enabled = true

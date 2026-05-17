@@ -30,9 +30,16 @@ const LOCATION_SCENES := {
 @onready var loading_overlay: ColorRect = $HUD/LoadingOverlay
 @onready var loading_progress: Label = $HUD/LoadingOverlay/Progress
 @onready var reflection_label: Label = $HUD/ReflectionPanel/ReflectionLabel
+@onready var btn_filter_all: Button = $HUD/MemoryPanel/FilterBar/BtnAll
+@onready var btn_filter_reflection: Button = $HUD/MemoryPanel/FilterBar/BtnReflection
+@onready var btn_filter_observation: Button = $HUD/MemoryPanel/FilterBar/BtnObservation
+@onready var btn_filter_plan: Button = $HUD/MemoryPanel/FilterBar/BtnPlan
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
+# memory filter: "all" / "reflection" / "observation" / "plan"
+var _memory_filter: String = "all"
+var _memory_cache: Array = []  # 最近一次拉到的 raw memories,切 tab 时直接重渲
 
 
 func _ready() -> void:
@@ -52,6 +59,10 @@ func _ready() -> void:
 	GameWorld.daily_reflection_started.connect(_on_daily_reflection_started)
 	GameWorld.daily_reflection_completed.connect(_on_daily_reflection_completed)
 	pause_button.pressed.connect(_on_pause_button_pressed)
+	btn_filter_all.pressed.connect(func() -> void: _set_memory_filter("all"))
+	btn_filter_reflection.pressed.connect(func() -> void: _set_memory_filter("reflection"))
+	btn_filter_observation.pressed.connect(func() -> void: _set_memory_filter("observation"))
+	btn_filter_plan.pressed.connect(func() -> void: _set_memory_filter("plan"))
 
 	_update_nav_label()
 	_update_time_label()
@@ -289,27 +300,56 @@ func _format_action_summary(action: Dictionary) -> String:
 
 func _show_agent_memories(agent_id: String) -> void:
 	_selected_agent_id = agent_id
+	_memory_cache = []
 	var a: Dictionary = GameWorld.get_agent(agent_id)
-	memory_title.text = "%s · 最近 20 条(含反思)" % a.get("display_name", agent_id)
+	memory_title.text = "%s · 最近 20 条" % a.get("display_name", agent_id)
 	memory_panel.visible = true
 	memory_content.text = "[正在拉取...]"
 
 	BackendClient.fetch_agent_memories(agent_id, 20, func(memories: Array) -> void:
 		if _selected_agent_id != agent_id:
 			return  # 已切到别人
-		if memories.is_empty():
-			memory_content.text = "[无记忆]"
-			return
+		_memory_cache = memories
+		_render_memory_content()
+	)
 
-		# 反思单独分组,放最前面 — 让 Eric 一眼看到 Block G 产出
+
+func _set_memory_filter(filter: String) -> void:
+	_memory_filter = filter
+	# 同步 toggle 状态(其它 button 取消)
+	btn_filter_all.button_pressed = (filter == "all")
+	btn_filter_reflection.button_pressed = (filter == "reflection")
+	btn_filter_observation.button_pressed = (filter == "observation")
+	btn_filter_plan.button_pressed = (filter == "plan")
+	_render_memory_content()
+
+
+func _render_memory_content() -> void:
+	"""按 _memory_filter 渲染 _memory_cache 到 memory_content。"""
+	if _memory_cache.is_empty():
+		memory_content.text = "[无记忆]"
+		return
+
+	# 应用 filter
+	var filtered: Array = _memory_cache
+	if _memory_filter != "all":
+		filtered = []
+		for m in _memory_cache:
+			if m.get("memory_type") == _memory_filter:
+				filtered.append(m)
+	if filtered.is_empty():
+		memory_content.text = "[此分类下无记忆]"
+		return
+
+	# all 模式:反思单独分组放前面
+	if _memory_filter == "all":
 		var reflections: Array = []
 		var others: Array = []
-		for m in memories:
+		for m in filtered:
 			if m.get("memory_type") == "reflection":
 				reflections.append(m)
 			else:
 				others.append(m)
-
 		var lines: PackedStringArray = []
 		if not reflections.is_empty():
 			lines.append("[color=#c8b8e2][b]🌒 反思(%d 条)[/b][/color]" % reflections.size())
@@ -320,15 +360,37 @@ func _show_agent_memories(agent_id: String) -> void:
 			lines.append("")
 			lines.append("[color=#777777]── 观察 / 计划 ──[/color]")
 		for m in others:
-			var mtype: String = m.get("memory_type", "?")
-			var imp2: int = int(m.get("importance", 0))
-			var content2: String = str(m.get("content", "")).replace("\n", " ")
-			var emoji: String = "👁" if mtype == "observation" else "📋" if mtype == "plan" else "?"
-			var color: String = "#a8b3c2" if mtype == "observation" else "#b8c2a8"
-			lines.append("[color=%s]%s imp=%d[/color] %s" % [color, emoji, imp2, content2])
-
+			lines.append(_format_memory_line(m))
 		memory_content.text = "\n\n".join(lines)
-	)
+	else:
+		# 单类型 filter:直接按时间顺序铺开
+		var lines2: PackedStringArray = []
+		for m in filtered:
+			lines2.append(_format_memory_line(m))
+		memory_content.text = "\n\n".join(lines2)
+
+
+func _format_memory_line(m: Dictionary) -> String:
+	var mtype: String = m.get("memory_type", "?")
+	var imp: int = int(m.get("importance", 0))
+	var content: String = str(m.get("content", "")).replace("\n", " ")
+	var emoji: String
+	var color: String
+	match mtype:
+		"reflection":
+			emoji = "🌒"
+			color = "#c8b8e2"
+			return "[color=%s]%s [imp=%d] %s[/color]" % [color, emoji, imp, content]
+		"plan":
+			emoji = "📋"
+			color = "#b8c2a8"
+		"observation":
+			emoji = "👁"
+			color = "#a8b3c2"
+		_:
+			emoji = "?"
+			color = "#888888"
+	return "[color=%s]%s imp=%d[/color] %s" % [color, emoji, imp, content]
 
 
 func _clear_memory_panel() -> void:
