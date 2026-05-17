@@ -91,6 +91,12 @@ class DeepSeekClient:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        # P3 打磨:累计成本统计,GET /sim/health 暴露给前端
+        self.total_cost_yuan: float = 0.0
+        self.total_calls: int = 0
+        self.total_input_tokens: int = 0
+        self.total_output_tokens: int = 0
+        self.total_cache_hit_tokens: int = 0
         self._client = httpx.AsyncClient(
             timeout=timeout,
             headers={
@@ -222,4 +228,10 @@ class DeepSeekClient:
             cost_yuan,
             latency_ms,
         )
+        # 累计统计(P3 /sim/health)
+        self.total_cost_yuan += cost_yuan
+        self.total_calls += 1
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
+        self.total_cache_hit_tokens += cache_hit_tokens
         return LLMResponse(content=content, usage=usage, raw=data)

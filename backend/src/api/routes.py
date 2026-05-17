@@ -46,6 +46,18 @@ async def get_sim_state(request: Request) -> dict[str, Any]:
     return {"paused": engine.is_paused(), "game_time": engine.game_time}
 
 
+@router.get("/sim/health")
+async def get_sim_health(request: Request) -> dict[str, Any]:
+    """运行时健康统计:uptime / tick 数 / 反思统计 / LLM 累计成本 + 缓存命中率。
+
+    供 Eric 在 PowerShell `curl http://127.0.0.1:8000/sim/health` 快速查看
+    "我跑了多久,反思状态,花了多少钱,缓存命中正常吗"。
+    """
+    engine = _get_engine(request)
+    llm_client = getattr(request.app.state, "llm_client", None)
+    return engine.health_snapshot(llm_client=llm_client)
+
+
 @router.post("/sim/pause")
 async def pause_sim(request: Request) -> dict[str, Any]:
     """暂停 tick(不烧 token)。幂等。"""

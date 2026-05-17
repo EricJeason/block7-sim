@@ -96,6 +96,15 @@ class SimEngine:
         self._paused: bool = False
         self._last_game_day: int = 0
         self._reflection_tasks: set[asyncio.Task[None]] = set()
+        # P3 打磨:运行时统计,GET /sim/health 暴露
+        self._start_real_time: float = 0.0
+        self._total_ticks: int = 0
+        self._reflection_started_count: int = 0
+        self._reflection_completed_count: int = 0
+        self._reflection_total_count: int = 0
+        self._reflection_merged_count: int = 0
+        self._reflection_archived_count: int = 0
+        self._reflection_total_cost: float = 0.0
 
     # ---------------------------------------------------------------- start
 
@@ -110,6 +119,8 @@ class SimEngine:
         if not self._registered:
             self._register_agents()
             self._registered = True
+        if self._start_real_time == 0.0:
+            self._start_real_time = time.monotonic()
         if run_loop and self._tick_task is None:
             self._stop_event = asyncio.Event()
             self._tick_task = asyncio.create_task(self._run_tick_loop())
@@ -177,6 +188,7 @@ class SimEngine:
             dt_real = self.tick_interval_seconds
         game_dt = dt_real * self.time_scale
         self.game_time += game_dt
+        self._total_ticks += 1
         # Block G:跨游戏日 → 触发后台反思 + 压缩
         new_game_day = int(self.game_time // self.seconds_per_game_day)
         if new_game_day > self._last_game_day:
@@ -223,6 +235,7 @@ class SimEngine:
             return
         if self.reflection_runner is None and self.compressor is None:
             return
+        self._reflection_started_count += 1
         self._publish(
             SimEvent(
                 type="daily_reflection_started",
@@ -279,6 +292,12 @@ class SimEngine:
             "[sim] daily reflection day=%d: %d reflections, merged=%d archived=%d, cost=%.3f元",
             completed_day, reflection_total, merged_total, archived_total, cost_total,
         )
+        # 累计统计(P3 /sim/health)
+        self._reflection_completed_count += 1
+        self._reflection_total_count += reflection_total
+        self._reflection_merged_count += merged_total
+        self._reflection_archived_count += archived_total
+        self._reflection_total_cost += cost_total
         self._publish(
             SimEvent(
                 type="daily_reflection_completed",
@@ -450,6 +469,51 @@ class SimEngine:
         )
 
     # ------------------------------------------------------- snapshot helpers
+
+    def health_snapshot(self, llm_client: Any | None = None) -> dict[str, Any]:
+        """运行时健康统计。给 GET /sim/health 用。
+
+        Args:
+            llm_client: 可选,传 DeepSeekClient 实例可加 LLM 总成本/调用统计
+        """
+        uptime = time.monotonic() - self._start_real_time if self._start_real_time > 0 else 0.0
+        snap: dict[str, Any] = {
+            "uptime_seconds": round(uptime, 1),
+            "game_time": self.game_time,
+            "game_day": int(self.game_time // self.seconds_per_game_day),
+            "paused": self._paused,
+            "agent_count": len(self.agent_ids),
+            "subscriber_count": len(self._subscribers),
+            "tick_count": self._total_ticks,
+            "time_scale": self.time_scale,
+            "tick_interval_seconds": self.tick_interval_seconds,
+            "reflection": {
+                "started": self._reflection_started_count,
+                "completed": self._reflection_completed_count,
+                "in_flight": len(self._reflection_tasks),
+                "total_reflections": self._reflection_total_count,
+                "total_merged": self._reflection_merged_count,
+                "total_archived": self._reflection_archived_count,
+                "total_cost_yuan": round(self._reflection_total_cost, 4),
+            },
+        }
+        if llm_client is not None and hasattr(llm_client, "total_cost_yuan"):
+            snap["llm"] = {
+                "total_calls": getattr(llm_client, "total_calls", 0),
+                "total_cost_yuan": round(getattr(llm_client, "total_cost_yuan", 0.0), 4),
+                "total_input_tokens": getattr(llm_client, "total_input_tokens", 0),
+                "total_output_tokens": getattr(llm_client, "total_output_tokens", 0),
+                "total_cache_hit_tokens": getattr(llm_client, "total_cache_hit_tokens", 0),
+            }
+            # 缓存命中率(仅 input)
+            total_in = snap["llm"]["total_input_tokens"]
+            if total_in > 0:
+                snap["llm"]["cache_hit_rate"] = round(
+                    snap["llm"]["total_cache_hit_tokens"] / total_in, 3
+                )
+            else:
+                snap["llm"]["cache_hit_rate"] = 0.0
+        return snap
 
     def world_snapshot(self) -> dict[str, Any]:
         """初始化时给客户端的世界快照:locations + agents 当前分布 + 元数据。"""

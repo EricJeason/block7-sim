@@ -134,6 +134,33 @@ def test_pause_idempotent(client: TestClient, engine: SimEngine) -> None:
     assert engine.is_paused() is True
 
 
+def test_sim_health_shape(client: TestClient) -> None:
+    """/sim/health 返回标准字段。"""
+    r = client.get("/sim/health")
+    assert r.status_code == 200
+    data = r.json()
+    # 必有字段
+    for key in [
+        "uptime_seconds", "game_time", "game_day", "paused",
+        "agent_count", "subscriber_count", "tick_count", "reflection",
+    ]:
+        assert key in data, f"missing {key}"
+    refl = data["reflection"]
+    for key in ["started", "completed", "in_flight", "total_reflections",
+                "total_merged", "total_archived", "total_cost_yuan"]:
+        assert key in refl, f"missing reflection.{key}"
+
+
+@pytest.mark.asyncio
+async def test_sim_health_tracks_ticks(engine: SimEngine, app_with_engine) -> None:
+    """tick_count 应随 tick_once 增长。"""
+    initial = engine.health_snapshot()["tick_count"]
+    await engine.tick_once(dt_real=0.1)
+    await engine.tick_once(dt_real=0.1)
+    new = engine.health_snapshot()["tick_count"]
+    assert new == initial + 2
+
+
 # ============================================================================
 #                            HTTP /agents
 # ============================================================================
