@@ -30,6 +30,7 @@ const LOCATION_SCENES := {
 @onready var loading_overlay: ColorRect = $HUD/LoadingOverlay
 @onready var loading_progress: Label = $HUD/LoadingOverlay/Progress
 @onready var reflection_label: Label = $HUD/ReflectionPanel/ReflectionLabel
+@onready var dialogue_label: Label = $HUD/ReflectionPanel/DialogueLabel
 @onready var btn_filter_all: Button = $HUD/MemoryPanel/FilterBar/BtnAll
 @onready var btn_filter_reflection: Button = $HUD/MemoryPanel/FilterBar/BtnReflection
 @onready var btn_filter_observation: Button = $HUD/MemoryPanel/FilterBar/BtnObservation
@@ -166,6 +167,15 @@ func _on_health_received(data: Dictionary) -> void:
 	cost_hint.text = "¥%.3f\n%.2f/min\n命中 %d%%" % [
 		total_cost, rate_per_min, int(cache_hit * 100)
 	]
+	# Block I 对话统计
+	var dlg: Dictionary = data.get("dialogue", {})
+	var sessions: int = int(dlg.get("total_sessions_started", 0))
+	var lines: int = int(dlg.get("total_lines", 0))
+	var active: int = int(dlg.get("active_sessions", 0))
+	if active > 0:
+		dialogue_label.text = "💬 对话: %d 场(%d 句)· %d 进行中" % [sessions, lines, active]
+	else:
+		dialogue_label.text = "💬 对话: %d 场(%d 句)" % [sessions, lines]
 
 
 # ----------------------------------------------------- loading overlay
@@ -239,8 +249,13 @@ func _update_time_label() -> void:
 	var day: int = int(gt / seconds_per_day) + 1
 	var seconds_today: float = fmod(gt, seconds_per_day)
 	var hour: int = int(seconds_today / 3600.0)
-	var minute: int = int(fmod(seconds_today, 3600.0) / 60.0)
-	time_label.text = "Day %d, %02d:%02d" % [day, hour, minute]
+	# 加速模式 (time_scale ≥ 600, 即 1 现实秒 ≥ 10 游戏分钟) 下 minute 字段
+	# 跳变太快没有信息价值,只显示 hour
+	if GameWorld.time_scale >= 600.0:
+		time_label.text = "Day %d, %02d:00" % [day, hour]
+	else:
+		var minute: int = int(fmod(seconds_today, 3600.0) / 60.0)
+		time_label.text = "Day %d, %02d:%02d" % [day, hour, minute]
 
 
 func _update_connection_dot(connected: bool) -> void:
