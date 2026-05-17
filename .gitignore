@@ -50,6 +50,9 @@ backend/logs/
 # Design preview build artifacts (recreatable from project/*.jsx sources)
 docs/design/**/*standalone.html
 
+# 平板上传图片提取(可随时从 session jsonl 重新提取,不入仓)
+docs/uploaded/
+
 # 临时文件
 *.bak
 *.tmp
