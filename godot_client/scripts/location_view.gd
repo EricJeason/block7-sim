@@ -124,13 +124,24 @@ func _remove_agent_node(agent_id: String) -> void:
 
 
 func _slot_position_for(agent_id: String) -> Vector2:
-	"""按 agent_id 哈希分配场内站位。简单 4x3 网格,后续可改寻路。
-	x 范围 220-940(避开右侧 inspector 280px 占位区),y 范围 320-580。"""
+	"""按 全局 agent_id 字典序 index 分配场内站位。
+
+	原版用 agent_id.hash() % 12,12 agent 经常落同一格(hash mod 12 不保证唯一)。
+	现在用 GameWorld.agents.keys() sorted 后的 index → 12 个 agent 落 12 个唯一位置,
+	某场所内不会再有视觉撞位。每个 agent 在所有场所站固定位置 = 玩家容易记住"林秋
+	总在最左上"这种空间锚定。
+
+	网格 4x3:x 220-940(避开右侧 inspector 280px),y 320-580。
+	"""
+	var all_ids: Array = GameWorld.agents.keys()
+	all_ids.sort()  # 字典序;agent_01..12 → 自然有序
+	var idx: int = all_ids.find(agent_id)
+	if idx < 0:
+		# 未注册的 agent 用 hash 兜底(不应发生,但稳)
+		idx = absi(agent_id.hash()) % 12
+	var col: int = idx % 4
 	@warning_ignore("integer_division")
-	var h: int = absi(agent_id.hash())
-	var col: int = h % 4
-	@warning_ignore("integer_division")
-	var row: int = (h / 4) % 3
+	var row: int = idx / 4
 	var x: float = 220.0 + col * 240.0
 	var y: float = 320.0 + row * 130.0
 	return Vector2(x, y)
