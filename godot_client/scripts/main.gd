@@ -283,23 +283,43 @@ func _format_action_summary(action: Dictionary) -> String:
 func _show_agent_memories(agent_id: String) -> void:
 	_selected_agent_id = agent_id
 	var a: Dictionary = GameWorld.get_agent(agent_id)
-	memory_title.text = "%s · 最近 8 条记忆" % a.get("display_name", agent_id)
+	memory_title.text = "%s · 最近 20 条(含反思)" % a.get("display_name", agent_id)
 	memory_panel.visible = true
 	memory_content.text = "[正在拉取...]"
 
-	BackendClient.fetch_agent_memories(agent_id, 8, func(memories: Array) -> void:
+	BackendClient.fetch_agent_memories(agent_id, 20, func(memories: Array) -> void:
 		if _selected_agent_id != agent_id:
 			return  # 已切到别人
 		if memories.is_empty():
 			memory_content.text = "[无记忆]"
 			return
-		var lines: PackedStringArray = []
+
+		# 反思单独分组,放最前面 — 让 Eric 一眼看到 Block G 产出
+		var reflections: Array = []
+		var others: Array = []
 		for m in memories:
+			if m.get("memory_type") == "reflection":
+				reflections.append(m)
+			else:
+				others.append(m)
+
+		var lines: PackedStringArray = []
+		if not reflections.is_empty():
+			lines.append("[color=#c8b8e2][b]🌒 反思(%d 条)[/b][/color]" % reflections.size())
+			for m in reflections:
+				var imp: int = int(m.get("importance", 0))
+				var content: String = str(m.get("content", "")).replace("\n", " ")
+				lines.append("[color=#c8b8e2]· [imp=%d] %s[/color]" % [imp, content])
+			lines.append("")
+			lines.append("[color=#777777]── 观察 / 计划 ──[/color]")
+		for m in others:
 			var mtype: String = m.get("memory_type", "?")
-			var imp: int = int(m.get("importance", 0))
-			var content: String = str(m.get("content", "")).replace("\n", " ")
-			var tag: String = mtype.substr(0, 1).to_upper()
-			lines.append("[color=#a8b3c2][%s imp=%d][/color] %s" % [tag, imp, content])
+			var imp2: int = int(m.get("importance", 0))
+			var content2: String = str(m.get("content", "")).replace("\n", " ")
+			var emoji: String = "👁" if mtype == "observation" else "📋" if mtype == "plan" else "?"
+			var color: String = "#a8b3c2" if mtype == "observation" else "#b8c2a8"
+			lines.append("[color=%s]%s imp=%d[/color] %s" % [color, emoji, imp2, content2])
+
 		memory_content.text = "\n\n".join(lines)
 	)
 

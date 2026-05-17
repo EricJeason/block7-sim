@@ -11,9 +11,14 @@
 Prompt 复用 4 层结构(Layer 0 暮谷镇 + Layer 1 PersonaProfile +
 Layer 2 当日 memory dump + Layer 3 反思任务)— 与 LLMPlanner 共享同一
 Layer 0/1 缓存命名空间,保持命中率。
+
+并发限制:Pro think_high 单次 60-90 秒,12 agent 同时跑会占满 DeepSeek 连接
++ 让 fine plan 排队。用 asyncio.Semaphore 限制 max_concurrent=3,
+让 fine plan 仍能正常被服务。
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -32,6 +37,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_MIN_IMPORTANCE = 4
 # 默认希望 LLM 产出多少条 reflection
 DEFAULT_REFLECTION_COUNT = 7
+# 反思任务并发上限(防止 12 个 Pro think_high 同时跑饿死 fine plan)
+DEFAULT_MAX_CONCURRENT = 3
 SECONDS_PER_GAME_DAY = 86400.0
 
 _JSON_OBJECT_RE = re.compile(r"\{[\s\S]*\}")
@@ -97,6 +104,7 @@ class ReflectionRunner:
         model_pro: str = "deepseek-v4-pro",
         min_importance: int = DEFAULT_MIN_IMPORTANCE,
         seconds_per_game_day: float = SECONDS_PER_GAME_DAY,
+        max_concurrent: int = DEFAULT_MAX_CONCURRENT,
     ) -> None:
         self.llm = llm
         self.persona_loader = persona_loader
@@ -104,6 +112,8 @@ class ReflectionRunner:
         self.model_pro = model_pro
         self.min_importance = min_importance
         self.seconds_per_game_day = seconds_per_game_day
+        # 限制 Pro think_high 反思调用并发,避免饿死 fine plan
+        self._semaphore = asyncio.Semaphore(max_concurrent)
 
     async def run_for_agent(
         self,
@@ -111,11 +121,20 @@ class ReflectionRunner:
         game_day: int,
         game_time: float,
     ) -> ReflectionResult:
-        """对 agent_id 跑一次反思。
+        """对 agent_id 跑一次反思(受 semaphore 限制)。
 
         game_day:反思的目标日(0-indexed,内部计算时段)
         game_time:当前 sim 时间,用于写入 reflection 的 game_time 字段
         """
+        async with self._semaphore:
+            return await self._run_for_agent_inner(agent_id, game_day, game_time)
+
+    async def _run_for_agent_inner(
+        self,
+        agent_id: str,
+        game_day: int,
+        game_time: float,
+    ) -> ReflectionResult:
         try:
             persona = self.persona_loader.load(agent_id)
         except Exception as exc:  # noqa: BLE001
