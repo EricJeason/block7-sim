@@ -92,6 +92,9 @@ var current_view_location: String = "lao_song_plaza"
 ## BackendClient.bind_player() 成功后由后端确认 + 触发 player_bound signal。
 var player_agent_id: String = "agent_04"
 
+## F4.4 全屏 DialogueSession modal 活动时为 true → LocationView / main.gd 抑制头顶气泡
+var dialogue_modal_active: bool = false
+
 ## F2 玩家位置:在当前场所内的 (x, y) 坐标 + 朝向。
 ## 由 PlayerNode 维护;WASD 移动时 update。后端不持久(player agent runtime location 由
 ## "玩家位于场所 X" 这种粗粒度跟踪,精确 xy 不上送)。

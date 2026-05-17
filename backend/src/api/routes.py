@@ -41,7 +41,16 @@ class BindPlayerRequest(BaseModel):
 class PlayerGreetRequest(BaseModel):
     target_id: str = Field(..., description="玩家要打招呼的 NPC agent_id")
     player_line: str = Field(..., description="玩家说的话(F4.1 固定 / v0.4 LLM 候选或自由输入)")
-    max_turns: int = Field(default=2, ge=2, le=8, description="对话总轮数,默认 2(玩家 1+NPC 1)")
+    max_turns: int = Field(default=2, ge=2, le=20, description="对话总轮数,默认 2(玩家 1+NPC 1);F4.4 可加大支持持续对话")
+
+
+class ContinueDialogueRequest(BaseModel):
+    session_id: str = Field(..., description="已存活的 session id(由 player_greet 返回)")
+    player_line: str = Field(..., description="玩家追加的一句话")
+
+
+class EndDialogueRequest(BaseModel):
+    session_id: str = Field(..., description="要结束的 session id")
 
 
 def _get_engine(request: Request) -> SimEngine:
@@ -193,6 +202,50 @@ async def player_greet(req: PlayerGreetRequest, request: Request) -> dict[str, A
         "session_id": session.session_id,
         "initiator_id": session.initiator_id,
         "target_id": session.target_id,
+    }
+
+
+@router.post("/dialogue/continue")
+async def continue_dialogue(req: ContinueDialogueRequest, request: Request) -> dict[str, Any]:
+    """F4.4 玩家在已存活的 session 里追加一句话 → 后端 LLM 生成 NPC 回复。
+
+    与 player_greet 不同:
+    - player_greet 是开新 session(玩家发起第一句)
+    - continue 是延续 session(玩家在 modal 持续聊)
+    - WS 推回 dialogue_line(玩家 + NPC)
+    """
+    engine = _get_engine(request)
+    if engine.dialogue_manager is None:
+        raise HTTPException(status_code=503, detail="dialogue_manager 未初始化")
+    session = engine.dialogue_manager.continue_player_session(
+        session_id=req.session_id,
+        player_line=req.player_line,
+        game_time=engine.game_time,
+    )
+    if session is None:
+        raise HTTPException(
+            status_code=409,
+            detail="无法 continue:session 不存在/已结束/空 line/不是玩家轮次",
+        )
+    return {
+        "session_id": session.session_id,
+        "lines_count": len(session.lines),
+    }
+
+
+@router.post("/dialogue/end")
+async def end_dialogue(req: EndDialogueRequest, request: Request) -> dict[str, Any]:
+    """F4.4 玩家关闭对话 modal → finalize session + 写双方 memory。"""
+    engine = _get_engine(request)
+    if engine.dialogue_manager is None:
+        raise HTTPException(status_code=503, detail="dialogue_manager 未初始化")
+    session = await engine.dialogue_manager.end_player_session(req.session_id)
+    if session is None:
+        return {"session_id": req.session_id, "already_ended": True}
+    return {
+        "session_id": session.session_id,
+        "end_reason": session.end_reason,
+        "total_lines": len(session.lines),
     }
 
 

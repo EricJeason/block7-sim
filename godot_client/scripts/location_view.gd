@@ -307,6 +307,9 @@ func _on_agent_thinking_completed(agent_id: String, appended_count: int) -> void
 
 
 func _on_dialogue_line(_session_id: String, speaker_id: String, text: String, _turn_idx: int) -> void:
+	# F4.4: 全屏 DialogueSession modal 打开时跳过 NPC 头顶气泡
+	if GameWorld.dialogue_modal_active:
+		return
 	var node: Node = _agent_nodes.get(speaker_id)
 	if node != null and node.has_method("show_speech_line"):
 		node.show_speech_line(text)

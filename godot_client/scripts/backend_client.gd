@@ -179,7 +179,91 @@ func _fetch_world() -> void:
 		http.queue_free()
 
 
+# ----------------------------------------------------- F4.4 dialogue continue/end
+
+func continue_dialogue(session_id: String, player_line: String, on_done: Callable = Callable()) -> void:
+	"""F4.4 玩家在已存活的 session 追加一句 → 后端 LLM 生成 NPC 回复(WS 推回)。"""
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+			http.queue_free()
+			var ok: bool = (result == HTTPRequest.RESULT_SUCCESS and code == 200)
+			if not ok:
+				push_warning("[backend_client] /dialogue/continue failed: code=%d body=%s" % [
+					code, body.get_string_from_utf8().substr(0, 200)
+				])
+			if on_done.is_valid():
+				on_done.call(ok)
+	)
+	var body_json: String = JSON.stringify({"session_id": session_id, "player_line": player_line})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err: int = http.request(
+		BACKEND_URL + "/dialogue/continue", headers, HTTPClient.METHOD_POST, body_json
+	)
+	if err != OK:
+		push_warning("[backend_client] POST /dialogue/continue err=%d" % err)
+		http.queue_free()
+
+
+func end_dialogue(session_id: String) -> void:
+	"""F4.4 玩家关 modal → backend finalize session + 写 memory(双方)。
+	无回调,fire-and-forget。"""
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(_result: int, _code: int, _h: PackedStringArray, _body: PackedByteArray) -> void:
+			http.queue_free()
+	)
+	var body_json: String = JSON.stringify({"session_id": session_id})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err: int = http.request(
+		BACKEND_URL + "/dialogue/end", headers, HTTPClient.METHOD_POST, body_json
+	)
+	if err != OK:
+		http.queue_free()
+
+
 # ----------------------------------------------------- F4.1 player_greet
+
+func player_greet_extended(target_id: String, player_line: String, max_turns: int, on_done: Callable = Callable()) -> void:
+	"""F4.4 玩家发起对话(可自定义 max_turns 给 DialogueSession modal 留多轮空间)。"""
+	var http := HTTPRequest.new()
+	add_child(http)
+	http.request_completed.connect(
+		func(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+			http.queue_free()
+			if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+				push_warning("[backend_client] /dialogue/player_greet failed: code=%d body=%s" % [
+					code, body.get_string_from_utf8().substr(0, 200)
+				])
+				if on_done.is_valid():
+					on_done.call(false, "")
+				return
+			var text: String = body.get_string_from_utf8()
+			var parsed: Variant = JSON.parse_string(text)
+			if typeof(parsed) != TYPE_DICTIONARY:
+				if on_done.is_valid():
+					on_done.call(false, "")
+				return
+			var sid: String = str(parsed.get("session_id", ""))
+			print("[backend_client] player_greet (extended) ok session=%s" % sid.substr(0, 8))
+			if on_done.is_valid():
+				on_done.call(true, sid)
+	)
+	var body_json: String = JSON.stringify({
+		"target_id": target_id,
+		"player_line": player_line,
+		"max_turns": max_turns,
+	})
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err: int = http.request(
+		BACKEND_URL + "/dialogue/player_greet", headers, HTTPClient.METHOD_POST, body_json
+	)
+	if err != OK:
+		push_warning("[backend_client] POST /dialogue/player_greet err=%d" % err)
+		http.queue_free()
+
 
 func player_greet(target_id: String, player_line: String, on_done: Callable = Callable()) -> void:
 	"""F4.1 玩家发起对话(打招呼) → 后端 LLM 生成 NPC 回复 → WS 推 dialogue_line。

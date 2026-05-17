@@ -417,3 +417,82 @@ async def test_player_session_rejects_when_busy(persona_loader, store, captured_
     player = _make_agent("agent_01")
     assert mgr.try_start_player_session(player, a, "你好。", 0.0) is None
     await mgr.shutdown()
+
+
+# ============================================================================
+#                  F4.4 continue_player_session + end_player_session
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_player_session_does_not_auto_finalize(persona_loader, store, captured_events):
+    """玩家发起 session 跑完 max_turns 后**不**自动 finalize(可继续对话)。"""
+    llm = MockLLM(responses=["嗯。"])
+    mgr = _make_manager(llm, persona_loader, store, captured_events, max_turns=2)
+    player = _make_agent("agent_01")
+    target = _make_agent("agent_02")
+    session = mgr.try_start_player_session(player, target, "你好。", 0.0, max_turns=2)
+    assert session is not None
+    await _drain(mgr)
+    # 跑完后 session 应仍 active(可继续)
+    assert session.ended is False
+    assert mgr.is_agent_busy_with_dialogue("agent_01") is True
+    assert mgr.is_agent_busy_with_dialogue("agent_02") is True
+    # 主动 end
+    await mgr.end_player_session(session.session_id)
+    assert session.ended is True
+
+
+@pytest.mark.asyncio
+async def test_continue_player_session_appends_and_generates(persona_loader, store, captured_events):
+    """continue 应:追加玩家 line + 触发 NPC LLM 1 句回复。"""
+    llm = MockLLM(responses=["嗯。", "好的。"])
+    mgr = _make_manager(llm, persona_loader, store, captured_events, max_turns=2)
+    player = _make_agent("agent_01")
+    target = _make_agent("agent_02")
+    session = mgr.try_start_player_session(player, target, "你好。", 0.0, max_turns=2)
+    await _drain(mgr)
+    # 此时 session.lines = [玩家 "你好", NPC "嗯。"]
+    assert len(session.lines) == 2
+
+    # 玩家追加一句
+    result = mgr.continue_player_session(session.session_id, "你最近怎样?", 10.0)
+    assert result is not None
+    await _drain(mgr)
+    # 现在 lines = 4(2 + 玩家新句 + NPC LLM 回复)
+    assert len(session.lines) == 4
+    assert session.lines[2].speaker_id == "agent_01"
+    assert session.lines[2].text == "你最近怎样?"
+    assert session.lines[3].speaker_id == "agent_02"
+    assert session.lines[3].text == "好的。"
+    await mgr.end_player_session(session.session_id)
+
+
+@pytest.mark.asyncio
+async def test_continue_rejects_after_end(persona_loader, store, captured_events):
+    """end 后再 continue 应返回 None。"""
+    llm = MockLLM(responses=["嗯。"])
+    mgr = _make_manager(llm, persona_loader, store, captured_events, max_turns=2)
+    player = _make_agent("agent_01")
+    target = _make_agent("agent_02")
+    session = mgr.try_start_player_session(player, target, "你好。", 0.0)
+    await _drain(mgr)
+    await mgr.end_player_session(session.session_id)
+    assert mgr.continue_player_session(session.session_id, "再说一句", 10.0) is None
+
+
+@pytest.mark.asyncio
+async def test_continue_rejects_empty_and_unknown(persona_loader, store, captured_events):
+    """continue:空 line 或 session_id 不存在应返回 None。"""
+    llm = MockLLM(responses=["嗯。"])
+    mgr = _make_manager(llm, persona_loader, store, captured_events, max_turns=2)
+    player = _make_agent("agent_01")
+    target = _make_agent("agent_02")
+    session = mgr.try_start_player_session(player, target, "你好。", 0.0)
+    await _drain(mgr)
+    # 空 line
+    assert mgr.continue_player_session(session.session_id, "", 10.0) is None
+    assert mgr.continue_player_session(session.session_id, "  ", 10.0) is None
+    # 未知 session
+    assert mgr.continue_player_session("fakeid", "你好", 10.0) is None
+    await mgr.end_player_session(session.session_id)

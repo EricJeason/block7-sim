@@ -35,6 +35,9 @@ const RelationshipNetworkScene := preload("res://scenes/ui/RelationshipNetwork.t
 # v0.3 RPG 容器 — 共用 placeholder modal,内容由 setup() 区分
 const RpgPlaceholderScene := preload("res://scenes/ui/RpgPlaceholder.tscn")
 
+# F4.4 全屏对话 modal
+const DialogueSessionScene := preload("res://scenes/ui/DialogueSession.tscn")
+
 @onready var location_container: Node2D = $LocationContainer
 @onready var time_label: Label = $HUD/TimePanel/TimeLabel
 @onready var connection_dot: Label = $HUD/TimePanel/ConnectionDot
@@ -83,6 +86,9 @@ var _relationship_network: Control = null
 
 # v0.3 RPG 容器 4 modal(共用 instance 引用)
 var _rpg_modal: Control = null
+
+# F4.4 当前活动的全屏对话 modal(打开时抑制头顶气泡渲染)
+var _dialogue_session: Control = null
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -662,7 +668,8 @@ func _on_bubble_option_chosen(action_id: String, npc_id: String) -> void:
 
 
 func _player_greet(npc_id: String, action_id: String) -> void:
-	"""F4.4 玩家选了某句开场白 → 调后端 LLM player_greet。"""
+	"""F4.4 玩家选了某句开场白 → 弹全屏 DialogueSession modal + 调后端 LLM。
+	玩家可在 modal 内自由输入持续对话,直到关闭 modal。"""
 	if _current_view == null:
 		return
 	var npc_agent: Dictionary = GameWorld.get_agent(npc_id)
@@ -674,9 +681,34 @@ func _player_greet(npc_id: String, action_id: String) -> void:
 		"greet_busy":  "%s,在忙吗?" % npc_name,
 	}
 	var player_line: String = line_map.get(action_id, "你好。")
-	BackendClient.player_greet(npc_id, player_line, func(ok: bool, _sid: String) -> void:
-		if not ok:
-			push_warning("[interact] player_greet failed for %s" % npc_id)
+
+	# 1. 立即弹 modal(空 session,_ready 已 connect WS dialogue_line signal)
+	if _dialogue_session != null and is_instance_valid(_dialogue_session):
+		_dialogue_session.queue_free()
+	var modal = DialogueSessionScene.instantiate()
+	$HUD.add_child(modal)
+	modal.closed.connect(func() -> void:
+		_dialogue_session = null
+		GameWorld.dialogue_modal_active = false
+		_unlock_player()
+	)
+	_dialogue_session = modal
+	GameWorld.dialogue_modal_active = true
+	_lock_player()
+
+	# 2. 调 backend player_greet(max_turns=12 留足空间多轮对话)
+	BackendClient.player_greet_extended(
+		npc_id, player_line, 12,
+		func(ok: bool, sid: String) -> void:
+			if not ok or sid == "":
+				push_warning("[interact] player_greet failed for %s" % npc_id)
+				if _dialogue_session != null and is_instance_valid(_dialogue_session):
+					_dialogue_session.queue_free()
+					_dialogue_session = null
+					_unlock_player()
+				return
+			if _dialogue_session != null and is_instance_valid(_dialogue_session):
+				_dialogue_session.setup(sid, npc_id)
 	)
 
 
@@ -690,7 +722,10 @@ func _stub_greet(npc_id: String) -> void:
 
 func _on_dialogue_line_for_player(_session_id: String, speaker_id: String, text: String, _turn_idx: int) -> void:
 	"""F4.1: WS dialogue_line 事件 — 如果 speaker 是玩家,显示在 PlayerNode 头顶。
-	NPC 的对话气泡由 LocationView._on_dialogue_line → AgentNode.show_speech_line 处理。"""
+	NPC 的对话气泡由 LocationView._on_dialogue_line → AgentNode.show_speech_line 处理。
+	F4.4: 全屏 DialogueSession modal 打开时跳过(避免头顶+modal 双重显示)。"""
+	if GameWorld.dialogue_modal_active:
+		return
 	if speaker_id != GameWorld.player_agent_id:
 		return
 	if _current_view == null or not _current_view.has_method("get_player_node"):

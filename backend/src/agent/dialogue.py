@@ -65,6 +65,9 @@ class DialogueSession:
     lines: list[DialogueLine] = field(default_factory=list)
     ended: bool = False
     end_reason: str = ""
+    # F4.4: 玩家发起的 session 设为 False,_run_session 跑完不立即 finalize,
+    # 等玩家主动 /dialogue/end 才 finalize。NPC 间自动对话仍为 True(立即结束)。
+    auto_finalize: bool = True
 
     def participants(self) -> tuple[str, str]:
         return self.initiator_id, self.target_id
@@ -260,6 +263,7 @@ class DialogueManager:
             location=player.current_location,
             started_at_game_time=game_time,
             max_turns=max_turns,
+            auto_finalize=False,  # F4.4 玩家发起的 session 不自动 finalize
         )
         # 预填玩家 line(turn_idx=0)
         session.lines.append(DialogueLine(
@@ -306,6 +310,63 @@ class DialogueManager:
         task.add_done_callback(self._tasks.discard)
         return session
 
+    def continue_player_session(
+        self,
+        session_id: str,
+        player_line: str,
+        game_time: float,
+    ) -> DialogueSession | None:
+        """F4.4 玩家在已存活的 session 里追加一句话 → 触发 NPC LLM 回 1 句。
+
+        Returns:
+            session 或 None(session 不存在 / 已结束 / 空 line / 该 NPC 说不是玩家)。
+        """
+        session = self._sessions.get(session_id)
+        if session is None or session.ended:
+            return None
+        if player_line.strip() == "":
+            return None
+        # 必须轮到玩家说话(initiator)
+        if session.next_speaker() != session.initiator_id:
+            logger.warning(
+                "[dialogue] continue called but next_speaker=%s != initiator %s",
+                session.next_speaker(), session.initiator_id,
+            )
+            return None
+        # 追加玩家 line
+        current_turn: int = len(session.lines)
+        session.lines.append(DialogueLine(
+            speaker_id=session.initiator_id,
+            text=player_line.strip(),
+            game_time=game_time,
+            turn_idx=current_turn,
+        ))
+        self.total_lines += 1
+        # 立即广播玩家这一句
+        self._emit("dialogue_line", {
+            "session_id": session.session_id,
+            "speaker_id": session.initiator_id,
+            "text": player_line.strip(),
+            "turn_idx": current_turn,
+        })
+        # 扩大 max_turns 让 _run_session 能跑 1 轮 NPC 回复
+        session.max_turns = current_turn + 2
+        task = asyncio.create_task(self._run_session(session, start_turn=current_turn + 1))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return session
+
+    async def end_player_session(self, session_id: str) -> DialogueSession | None:
+        """F4.4 玩家主动结束 session(关 modal)→ finalize + 写 memory。"""
+        session = self._sessions.get(session_id)
+        if session is None or session.ended:
+            return None
+        session.end_reason = "player_closed"
+        # auto_finalize 设回 True 让 _finalize_session 真跑
+        session.auto_finalize = True
+        await self._finalize_session(session)
+        return session
+
     async def _run_session(self, session: DialogueSession, start_turn: int = 0) -> None:
         """串行生成 max_turns 轮台词,完成后写 memory + emit dialogue_ended。
 
@@ -339,7 +400,10 @@ class DialogueManager:
                     break
             if not session.end_reason:
                 session.end_reason = "max_turns"
-            await self._finalize_session(session)
+            # F4.4: 玩家发起 session(auto_finalize=False)不立即 finalize,
+            # 等玩家主动 /dialogue/end 触发。NPC 间对话仍正常 finalize。
+            if session.auto_finalize or session.end_reason == "llm_end_token":
+                await self._finalize_session(session)
         except Exception as exc:  # noqa: BLE001
             logger.exception("[dialogue] session %s crashed: %s", session.session_id[:8], exc)
             session.end_reason = f"crashed:{type(exc).__name__}"
