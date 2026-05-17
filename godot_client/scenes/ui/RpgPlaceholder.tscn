@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b7sim_rpg_placeholder"]
+
+[ext_resource type="Script" path="res://scripts/ui/rpg_placeholder.gd" id="1_rpg_placeholder"]
+
+[node name="RpgPlaceholder" type="Control"]
+script = ExtResource("1_rpg_placeholder")

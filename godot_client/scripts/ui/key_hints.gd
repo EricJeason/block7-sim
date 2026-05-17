@@ -68,14 +68,14 @@ static func default_hints_v02(e_target_name: String = "") -> Array[Dictionary]:
 	return [
 		{"key": "WASD", "label": "移动"},
 		{"key": "E", "label": e_label},
+		{"key": "C", "label": "角色"},
+		{"key": "I", "label": "背包"},
+		{"key": "J", "label": "线索 / 任务"},
+		{"key": "P", "label": "图鉴"},
 		{"key": "Q", "label": "场所概览"},
 		{"key": "F", "label": "读自己的心"},
 		{"key": "R", "label": "关系网"},
 		{"key": "Esc", "label": "菜单"},
 		{"key": "Tab", "label": "暂停"},
 		{"key": "F11", "label": "全屏"},
-		{"key": "C", "label": "角色", "dim": true},
-		{"key": "I", "label": "背包", "dim": true},
-		{"key": "J", "label": "线索 / 任务", "dim": true},
-		{"key": "P", "label": "图鉴", "dim": true},
 	]

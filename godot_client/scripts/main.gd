@@ -32,6 +32,9 @@ const SystemMenuScene := preload("res://scenes/ui/SystemMenu.tscn")
 const InnerHeartScene := preload("res://scenes/ui/InnerHeart.tscn")
 const RelationshipNetworkScene := preload("res://scenes/ui/RelationshipNetwork.tscn")
 
+# v0.3 RPG 容器 — 共用 placeholder modal,内容由 setup() 区分
+const RpgPlaceholderScene := preload("res://scenes/ui/RpgPlaceholder.tscn")
+
 @onready var location_container: Node2D = $LocationContainer
 @onready var time_label: Label = $HUD/TimePanel/TimeLabel
 @onready var connection_dot: Label = $HUD/TimePanel/ConnectionDot
@@ -77,6 +80,9 @@ var _inner_heart: Control = null
 
 # F4.3 RelationshipNetwork modal
 var _relationship_network: Control = null
+
+# v0.3 RPG 容器 4 modal(共用 instance 引用)
+var _rpg_modal: Control = null
 
 var _current_view: Node2D = null
 var _selected_agent_id: String = ""
@@ -317,6 +323,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		# F4.2: F 读自己的心
 		get_viewport().set_input_as_handled()
 		_toggle_inner_heart()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_C and not event.echo:
+		get_viewport().set_input_as_handled()
+		_toggle_rpg_modal("C")
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_I and not event.echo:
+		get_viewport().set_input_as_handled()
+		_toggle_rpg_modal("I")
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_J and not event.echo:
+		get_viewport().set_input_as_handled()
+		_toggle_rpg_modal("J")
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_P and not event.echo:
+		get_viewport().set_input_as_handled()
+		_toggle_rpg_modal("P")
 
 
 func _toggle_fullscreen() -> void:
@@ -874,4 +892,75 @@ func _toggle_relationship_network() -> void:
 		_unlock_player()
 	)
 	_relationship_network = modal
+	_lock_player()
+
+
+# ============================================================================
+# v0.3 RPG 容器 — C/I/J/P 共用 placeholder modal
+# ============================================================================
+
+const RPG_MODAL_CONFIG: Dictionary = {
+	"C": {
+		"title": "角色 · 你自己",
+		"subtitle": "C · YOU YOURSELF",
+		"description": "显性数值 + 半显症状 + 隐性属性(后端 only)。\n这里将显示你扮演的角色(艾琳)的健康 / 疲劳 / 饥饿 / 情绪条,半显症状如手指颤抖、梦境清晰度,以及背后隐藏的感染度、心理负荷、性格倾向(UI 永远不显示,仅 LLM 与系统使用)。",
+		"schema": "visible_stats:\n  - { id, name, max,\n      current, color }\n\nsemi_visible_symptoms:\n  - { id, text,\n      condition }\n\nhidden_attributes:\n  - { id, value,\n      drives: [tag] }\n\nequipment_summary:\n  - { slot, item_id,\n      effect? }",
+	},
+	"I": {
+		"title": "背包 · 持有物",
+		"subtitle": "I · INVENTORY",
+		"description": "玩家与 NPC 共享的世界 primitive。容量公式 = 基础容量(角色) + 装备加成 − 负重病惩罚。\n6 + 父亲的旧背包 +4 = 10 格。物品类型:工具 / 线索 / 食物 / 药材 / 文档,每个物品可注入 read/give/drop/use/equip 等 actions。",
+		"schema": "item:\n  id, name, icon,\n  weight, type\n  description\n  actions: [...]\n  effects?: {\n    on_use,\n    on_equip\n  }\n  hidden_tags?: [...]",
+	},
+	"J": {
+		"title": "线索 · 心愿 · 任务",
+		"subtitle": "J · CLUES & QUESTS",
+		"description": "默认软任务:不显式接 quest,任务来源于 NPC 对话产生的心愿 / 谜题 / 请求,玩家可选择记下或忽略。\n保留硬任务 tab:剧本 / 模组可注入有「未接 / 进行中 / 已完成」三态的硬任务。\n线索 tab 偏笔记本美学(羊皮纸 + Caveat 手写),任务 tab 偏待办清单美学(Plex Mono + checkbox)。",
+		"schema": "clue:\n  timestamp, source,\n  text, relations: [...]\n\nquest:\n  id, title,\n  description,\n  states: [...],\n  trigger: {\n    condition,\n    source_npc?\n  }\n  reward?: {...}",
+	},
+	"P": {
+		"title": "图鉴 · 12 人",
+		"subtitle": "P · CODEX",
+		"description": "记录你对 12 个 NPC 的认识程度。每个 NPC 字段渐进解锁(unlock_condition 达成时可见,否则显示 ???)。\n3 圆点(●●○ 等):第一个=见过,第二个=对话过,第三个=深入对话/深度了解。视觉上一眼能看出「我对这个人了解到哪个程度」。",
+		"schema": "codex_entry:\n  npc_id,\n  unlocked: {\n    seen: bool,\n    talked: bool,\n    deep: bool\n  }\n  fields:\n    - { id, name,\n        unlock_condition,\n        value }",
+	},
+}
+
+
+func _toggle_rpg_modal(hotkey: String) -> void:
+	"""共用 placeholder modal,按 hotkey 区分内容。"""
+	# 已显示该 hotkey 对应 modal → 关闭
+	if _rpg_modal != null and is_instance_valid(_rpg_modal):
+		_rpg_modal.queue_free()
+		_rpg_modal = null
+		_unlock_player()
+		return
+
+	# 关闭其他 modal
+	for m in [_inner_heart, _relationship_network, _location_card, _system_menu]:
+		if m != null and is_instance_valid(m):
+			m.queue_free()
+	_inner_heart = null
+	_relationship_network = null
+	_location_card = null
+	_system_menu = null
+
+	var config: Dictionary = RPG_MODAL_CONFIG.get(hotkey, {})
+	if config.is_empty():
+		return
+
+	var modal = RpgPlaceholderScene.instantiate()
+	$HUD.add_child(modal)
+	modal.setup(
+		hotkey,
+		config.get("title", ""),
+		config.get("subtitle", ""),
+		config.get("description", ""),
+		config.get("schema", "")
+	)
+	modal.closed.connect(func() -> void:
+		_rpg_modal = null
+		_unlock_player()
+	)
+	_rpg_modal = modal
 	_lock_player()
